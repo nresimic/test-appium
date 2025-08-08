@@ -33,7 +33,7 @@ function getAppPath(): string {
     }
     
     // Default fallback
-    const defaultApk = 'app-UAE-main-build-44.apk';
+    const defaultApk = 'app-test.apk';
     console.log(`Using default APK: ${defaultApk}`);
     return path.join(appsDir, defaultApk);
 }
