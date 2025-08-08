@@ -32,5 +32,8 @@ apps/android/*.aab
 apps/ios/*.ipa
 apps/ios/*.app
 
+# Allow test APK for CI
+!apps/android/app-test.apk
+
 # Keep example files
 !.env.example
