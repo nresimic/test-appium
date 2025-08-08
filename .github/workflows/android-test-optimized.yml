@@ -30,7 +30,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '11'  # Use Java 11 for better compatibility
+        java-version: '17'  # Required for latest Android SDK tools
     
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
