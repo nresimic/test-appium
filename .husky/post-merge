@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔄 Post-merge: Checking for latest builds..."
+
+# Get current branch
+current_branch=$(git branch --show-current)
+
+echo "📱 Branch: $current_branch"
+
+# Fetch latest builds for current branch
+npx tsx scripts/fetch-builds.ts --branch "$current_branch"
+
+if [ $? -eq 0 ]; then
+  echo "✅ Build check completed"
+else
+  echo "⚠️  Failed to fetch builds (continuing anyway)"
+fi

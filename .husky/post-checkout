@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Only run on branch checkout (not file checkout)
+# $3 is 1 for branch checkout, 0 for file checkout
+if [ "$3" = "1" ]; then
+  echo "🔄 Branch switched: Checking for latest builds..."
+  
+  # Get current branch
+  current_branch=$(git branch --show-current)
+  
+  echo "📱 Branch: $current_branch"
+  
+  # Fetch latest builds for current branch
+  npx tsx scripts/fetch-builds.ts --branch "$current_branch"
+  
+  if [ $? -eq 0 ]; then
+    echo "✅ Build check completed"
+  else
+    echo "⚠️  Failed to fetch builds (continuing anyway)"
+  fi
+fi
