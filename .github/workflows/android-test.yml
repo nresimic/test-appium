@@ -1,11 +1,7 @@
-name: Android Tests
+name: Android Tests (OLD - DO NOT USE)
 
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:  # Allows manual trigger from GitHub UI
+  workflow_dispatch:  # Only manual trigger, disabled automatic runs
 
 jobs:
   test-android:
