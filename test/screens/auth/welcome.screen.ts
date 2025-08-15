@@ -1,5 +1,5 @@
-import BaseScreen from './base.screen';
-import { verifyElementDisplayed } from '../utils/wait.utils';
+import BaseScreen from '../base.screen';
+import { verifyElementDisplayed } from '../../utils/wait.utils';
 
 class WelcomeScreen extends BaseScreen {
     get loginButton() {
@@ -11,11 +11,11 @@ class WelcomeScreen extends BaseScreen {
     }
 
     async isScreenDisplayed() {
-        const loginButton = this.loginButton;
-        const exists = await this.isExisting(loginButton);
+        const loginButton = await this.loginButton;
+        const exists = await loginButton.isExisting();
         if (!exists) return false;
         
-        return await this.isDisplayed(loginButton);
+        return await loginButton.isDisplayed();
     }
     
     async waitForScreen() {

@@ -1,0 +1,104 @@
+# Flow Documentation Template
+# This template guides the ios-app-navigator agent on HOW to document flows
+
+# INSTRUCTIONS FOR IOS-APP-NAVIGATOR AGENT:
+# Use this template to document every navigation flow
+# Save documented flows to: test-flows/documented-flows/[flow-name]-[timestamp].yaml
+
+metadata:
+  name: "[Flow Name]"  # e.g., "Login Flow", "Navigate to Profile"
+  description: "[What this flow accomplishes]"
+  timestamp: "[ISO 8601 timestamp]"
+  platform: "[ios/android]"
+  device: "[device name]"
+  app_version: "[app version if known]"
+  test_data_used:
+    phone: "[if used]"
+    otp: "[if used]"
+    passcode: "[if used]"
+
+# Document EVERY interaction in order
+steps:
+  - step: [number]
+    action: "[click/type/swipe/verify]"
+    screen: "[current screen name]"
+    
+    element:
+      description: "[what is this element]"
+      element_type: "[Button/TextField/Image/etc]"
+      
+      # CRITICAL: Document the actual selector that works
+      accessibility_id: "[exact accessibility ID found]"
+      selector_for_test: "[exact selector to use in tests]"
+      # Examples:
+      # - "~Profile settings" (accessibility id)
+      # - "//XCUIElementTypeButton[@name='Continue']" (iOS XPath)
+      # - "android=new UiSelector().description('Submit')" (Android UISelector)
+      
+      # Flag missing or problematic IDs
+      has_stable_id: [true/false]
+      contains_dynamic_data: [true/false]  # like "Nickname\nVictor"
+      
+      # If no good ID exists
+      fallback_selector: "[XPath or other selector used]"
+      coordinates_clicked: {x: [x], y: [y]}  # if coordinates were used
+      
+      # Recommendations for developers
+      recommendation: "[what testID should be added]"
+      suggested_file_to_update: "[path in Vault22-Global]"
+    
+    # For input actions
+    input_value: "[what was typed]"
+    
+    # What happened after the action
+    result: "[screen changed/keyboard appeared/etc]"
+    
+    # Any waiting required
+    wait_strategy: "[wait for element/fixed delay/etc]"
+    wait_duration: "[milliseconds]"
+
+# Elements that were checked but not interacted with
+observed_elements:
+  - description: "[element name]"
+    accessibility_id: "[id]"
+    purpose: "[why this element is important]"
+
+# What was verified at the end
+assertions:
+  - type: "[element_visible/text_equals/etc]"
+    element: "[element description]"
+    accessibility_id: "[id used]"
+    expected: "[expected value/state]"
+    actual: "[actual value/state]"
+    passed: [true/false]
+
+# Summary for test writers
+test_ready_selectors:
+  "[action_name]": "[selector]"  # Ready-to-use selectors
+  # Examples:
+  login_button: "~Login"
+  phone_input: "~phone-number-input"
+  menu_tab: "~Menu"
+
+problematic_selectors:
+  - element: "[element name]"
+    current_selector: "[unstable selector]"
+    issue: "[why it's problematic]"
+    workaround: "[temporary solution]"
+
+recommendations:
+  stability_improvements:
+    - "[List of elements needing testIDs]"
+  
+  test_writing_notes:
+    - "[Special considerations for test writers]"
+    - "[Timing issues to be aware of]"
+    - "[Platform-specific differences]"
+
+# Overall flow quality score
+quality_metrics:
+  total_elements: [number]
+  elements_with_stable_ids: [number]
+  elements_with_dynamic_content: [number]
+  elements_using_coordinates: [number]
+  stability_score: "[percentage]"  # (stable_ids / total_elements) * 100

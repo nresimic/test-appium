@@ -45,9 +45,12 @@ export const config = {
         'spec',
         ['allure', {
             outputDir: 'allure-results',
-            disableWebdriverStepsReporting: true,
-            disableWebdriverScreenshotsReporting: false,
-            useCucumberStepReporter: false
+            disableWebdriverStepsReporting: true, // Hide noisy WebDriver step names
+            disableWebdriverScreenshotsReporting: true, // Disable automatic screenshots to prevent duplicates
+            useCucumberStepReporter: false,
+            addConsoleLogs: true,
+            // This will still capture WebDriver commands as attachments to your custom steps
+            disableMochaHooks: false
         }]
     ],
     capabilities: [{

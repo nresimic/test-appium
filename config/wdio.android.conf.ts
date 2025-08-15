@@ -33,7 +33,7 @@ function getAppPath(): string {
     }
     
     // Default fallback
-    const defaultApk = 'app-test.apk';
+    const defaultApk = 'app-UAE-main-build-52.apk';
     console.log(`Using default APK: ${defaultApk}`);
     return path.join(appsDir, defaultApk);
 }
@@ -48,9 +48,12 @@ export const config = {
         'spec',
         ['allure', {
             outputDir: 'allure-results',
-            disableWebdriverStepsReporting: true,
-            disableWebdriverScreenshotsReporting: false,
-            useCucumberStepReporter: false
+            disableWebdriverStepsReporting: true, // Hide noisy WebDriver step names
+            disableWebdriverScreenshotsReporting: true, // Disable automatic screenshots to prevent duplicates
+            useCucumberStepReporter: false,
+            addConsoleLogs: false, // Disable to prevent EPIPE errors
+            // This will still capture WebDriver commands as attachments to your custom steps
+            disableMochaHooks: false
         }]
     ],
     capabilities: [{
@@ -61,7 +64,7 @@ export const config = {
         'appium:app': getAppPath(),
         'appium:automationName': 'UiAutomator2',
         'appium:noReset': process.env.ANDROID_NO_RESET === 'true' ? true : false,
-        'appium:fullReset': process.env.ANDROID_FULL_RESET === 'false' ? false : true,
+        'appium:fullReset': false,  // Temporarily set to false for testing
         'appium:newCommandTimeout': 240,
         // Auto-detect first available device if not specified
         'appium:udid': process.env.ANDROID_UDID || undefined,

@@ -1,0 +1,392 @@
+# Bank Linking Registration Flow Documentation
+# Complete flow from new user registration through bank account linking
+
+metadata:
+  name: "Bank Linking Registration Flow"
+  description: "Complete flow from new user registration to successful bank account linking via Lean Mockbank Two"
+  timestamp: "2025-08-14T12:36:00Z"
+  platform: "ios"
+  device: "iPhone 15"
+  app_version: "develop"
+  test_data_used:
+    phone: "569661789"
+    otp: "0000"
+    passcode: "0000"
+    bank_username: "dorriskemmer"
+    bank_password: "kAsPPxeFREd"
+
+steps:
+  - step: 1
+    action: "click"
+    screen: "Welcome/Onboarding Screen (Page 1 of 3)"
+    
+    element:
+      description: "Login using Phone Number button"
+      element_type: "StaticText"
+      
+      accessibility_id: "Login using Phone Number"
+      selector_for_test: '~"Login using Phone Number"'
+      
+      has_stable_id: false
+      contains_dynamic_data: false
+      
+      coordinates_clicked: {x: 196, y: 781}
+      
+      recommendation: "Add testID='login-phone-button' to this button"
+      suggested_file_to_update: "/lib/presentation/onboarding/[onboarding_screen].dart"
+    
+    result: "Navigated to phone number entry screen"
+    
+  - step: 2
+    action: "click"
+    screen: "Phone Number Entry Screen"
+    
+    element:
+      description: "Phone number input field"
+      element_type: "TextField"
+      
+      accessibility_id: "000 0000 000"
+      selector_for_test: '~"000 0000 000"'
+      
+      has_stable_id: false
+      contains_dynamic_data: true
+      
+      coordinates_clicked: {x: 248, y: 306}
+      
+      recommendation: "Add testID='phone-input-field' to this TextField"
+      suggested_file_to_update: "/lib/presentation/auth/phone_entry_screen.dart"
+    
+    input_value: "569661789"
+    result: "Phone number entered, keyboard appeared"
+
+  - step: 3
+    action: "click"
+    screen: "Phone Number Entry Screen"
+    
+    element:
+      description: "Get OTP button"
+      element_type: "Button"
+      
+      accessibility_id: "Get OTP"
+      selector_for_test: '~"Get OTP"'
+      
+      has_stable_id: true
+      contains_dynamic_data: false
+      
+      coordinates_clicked: {x: 196, y: 509}
+    
+    result: "Navigated to OTP verification screen"
+
+  - step: 4
+    action: "type"
+    screen: "OTP Verification Screen"
+    
+    element:
+      description: "OTP input field (4-digit passcode entry)"
+      element_type: "TextField"
+      
+      accessibility_id: "|"
+      selector_for_test: '~"|"'
+      
+      has_stable_id: false
+      contains_dynamic_data: true
+      
+      coordinates_clicked: {x: 196, y: 310}
+      
+      recommendation: "Add testID='otp-input-field' to this TextField"
+      suggested_file_to_update: "/lib/presentation/auth/otp_verification_screen.dart"
+    
+    input_value: "0000"
+    result: "OTP auto-submitted, showing loading animation"
+    wait_strategy: "wait for loading to complete"
+    wait_duration: "3000"
+
+  - step: 5
+    action: "type"
+    screen: "Passcode Setup Screen"
+    
+    element:
+      description: "Passcode input area (4-digit setup)"
+      element_type: "Implicit input area"
+      
+      accessibility_id: null
+      selector_for_test: null
+      
+      has_stable_id: false
+      contains_dynamic_data: false
+      
+      coordinates_clicked: {x: 196, y: 321}
+      
+      recommendation: "Add testID='passcode-setup-input' to passcode input area"
+      suggested_file_to_update: "/lib/presentation/auth/passcode_setup_screen.dart"
+    
+    input_value: "0000"
+    result: "Passcode accepted, navigated to dashboard"
+
+  - step: 6
+    action: "click"
+    screen: "Dashboard - Main"
+    
+    element:
+      description: "Link your accounts button"
+      element_type: "Button"
+      
+      accessibility_id: "Link your accounts"
+      selector_for_test: '~"Link your accounts"'
+      
+      has_stable_id: true
+      contains_dynamic_data: false
+      
+      coordinates_clicked: {x: 196, y: 236}
+    
+    result: "Navigated to account type selection screen"
+
+  - step: 7
+    action: "click"
+    screen: "Select Account Type Screen"
+    
+    element:
+      description: "UAE Banks option"
+      element_type: "StaticText"
+      
+      accessibility_id: "UAE Banks"
+      selector_for_test: '~"UAE Banks"'
+      
+      has_stable_id: true
+      contains_dynamic_data: false
+      
+      coordinates_clicked: {x: 196, y: 207}
+    
+    result: "UAE Banks selected, popup appeared with linking options"
+
+  - step: 8
+    action: "click"
+    screen: "Add Account Modal"
+    
+    element:
+      description: "Link your account button"
+      element_type: "Button"
+      
+      accessibility_id: "Link your account"
+      selector_for_test: '~"Link your account"'
+      
+      has_stable_id: true
+      contains_dynamic_data: false
+      
+      coordinates_clicked: {x: 196, y: 694}
+    
+    result: "Navigated to bank service provider selection"
+
+  - step: 9
+    action: "click"
+    screen: "Link Your Account - Service Providers"
+    
+    element:
+      description: "Lean Mockbank Two option"
+      element_type: "Image"
+      
+      accessibility_id: "Lean Mockbank Two"
+      selector_for_test: '~"Lean Mockbank Two"'
+      
+      has_stable_id: true
+      contains_dynamic_data: false
+      
+      coordinates_clicked: {x: 196, y: 389}
+    
+    result: "Lean Technologies loading screen appeared"
+    wait_strategy: "wait for Lean SDK to load"
+    wait_duration: "5000"
+
+  - step: 10
+    action: "click"
+    screen: "Lean Connection Introduction"
+    
+    element:
+      description: "Get started button for bank connection"
+      element_type: "Button"
+      
+      accessibility_id: "Get started"
+      selector_for_test: '~"Get started"'
+      
+      has_stable_id: true
+      contains_dynamic_data: false
+      
+      coordinates_clicked: {x: 196, y: 709}
+    
+    result: "Navigated to Lean Mockbank Two sign-in form"
+
+  - step: 11
+    action: "type"
+    screen: "Lean Mockbank Two Sign-in"
+    
+    element:
+      description: "Username input field"
+      element_type: "TextField"
+      
+      accessibility_id: null
+      selector_for_test: "//XCUIElementTypeTextField[@value='Username']"
+      
+      has_stable_id: false
+      contains_dynamic_data: false
+      
+      coordinates_clicked: {x: 215, y: 440}
+      
+      recommendation: "Ensure Lean SDK provides stable testIDs for form fields"
+    
+    input_value: "dorriskemmer"
+    result: "Username entered, keyboard appeared"
+
+  - step: 12
+    action: "type"
+    screen: "Lean Mockbank Two Sign-in"
+    
+    element:
+      description: "Password input field"
+      element_type: "TextField"
+      
+      accessibility_id: null
+      selector_for_test: "//XCUIElementTypeSecureTextField[@name='Password']"
+      
+      has_stable_id: false
+      contains_dynamic_data: false
+      
+      coordinates_clicked: {x: 196, y: 495}
+    
+    input_value: "kAsPPxeFREd"
+    result: "Password entered (masked), form ready for submission"
+
+  - step: 13
+    action: "click"
+    screen: "Lean Mockbank Two Sign-in"
+    
+    element:
+      description: "Secure Sign In button"
+      element_type: "Button"
+      
+      accessibility_id: "Secure Sign In"
+      selector_for_test: '~"Secure Sign In"'
+      
+      has_stable_id: true
+      contains_dynamic_data: false
+      
+      coordinates_clicked: {x: 196, y: 562}
+    
+    result: "Bank authentication successful, connection successful screen appeared"
+
+  - step: 14
+    action: "click"
+    screen: "Connection Successful"
+    
+    element:
+      description: "Close button to return to app"
+      element_type: "Button"
+      
+      accessibility_id: "Close"
+      selector_for_test: '~"Close"'
+      
+      has_stable_id: true
+      contains_dynamic_data: false
+      
+      coordinates_clicked: {x: 196, y: 671}
+    
+    result: "Returned to Portfolio view, bank account linked successfully"
+
+observed_elements:
+  - description: "Country code selector +971"
+    accessibility_id: "+971   "
+    purpose: "Shows UAE country code, may need testing for other regions"
+  
+  - description: "Terms & Conditions link"
+    accessibility_id: null
+    purpose: "Legal compliance verification"
+  
+  - description: "Use Face ID option on passcode screen"
+    accessibility_id: "Use Face ID"
+    purpose: "Biometric authentication alternative"
+
+  - description: "Portfolio navigation tabs"
+    accessibility_id: "Dashboard, Portfolio, Transactions, Budget, Menu"
+    purpose: "Main app navigation verification"
+
+assertions:
+  - type: "element_visible"
+    element: "Net worth section on dashboard"
+    accessibility_id: null
+    expected: "AED 0 (with bank account structure created)"
+    actual: "AED 0 displayed"
+    passed: true
+  
+  - type: "element_visible"
+    element: "Bank account group in portfolio"
+    accessibility_id: "Bank"
+    expected: "AED 0.00"
+    actual: "AED 0.00"
+    passed: true
+  
+  - type: "navigation_successful"
+    element: "Connection successful screen"
+    accessibility_id: "Connection successful"
+    expected: "Lean Mockbank Two account connected message"
+    actual: "Your Lean Mockbank Two account is now connected to Vault22"
+    passed: true
+
+test_ready_selectors:
+  get_otp_button: '~"Get OTP"'
+  link_accounts_button: '~"Link your accounts"'
+  uae_banks_option: '~"UAE Banks"'
+  link_account_modal_button: '~"Link your account"'
+  lean_mockbank_two: '~"Lean Mockbank Two"'
+  get_started_button: '~"Get started"'
+  secure_sign_in_button: '~"Secure Sign In"'
+  close_button: '~"Close"'
+  dashboard_tab: '~"Dashboard"'
+  portfolio_tab: '~"Portfolio"'
+
+problematic_selectors:
+  - element: "Phone number input field"
+    current_selector: '~"000 0000 000"'
+    issue: "Uses placeholder text which may change or be localized"
+    workaround: "Use XPath with TextField type and approximate position"
+  
+  - element: "OTP input field"
+    current_selector: '~"|"'
+    issue: "Uses cursor character as identifier"
+    workaround: "Use single TextField covering all OTP inputs"
+  
+  - element: "Passcode setup input"
+    current_selector: null
+    issue: "No accessible selector found"
+    workaround: "Click on coordinate area and use type action"
+  
+  - element: "Lean bank form fields"
+    current_selector: "XPath with text values"
+    issue: "Third-party SDK may not provide stable IDs"
+    workaround: "Use value or name attributes in XPath"
+
+recommendations:
+  stability_improvements:
+    - "Add testID='login-phone-button' to onboarding login button"
+    - "Add testID='phone-input-field' to phone number TextField"
+    - "Add testID='otp-input-field' to OTP verification TextField"
+    - "Add testID='passcode-setup-input' to passcode setup area"
+    - "Ensure Lean SDK integration preserves testability"
+  
+  test_writing_notes:
+    - "OTP verification auto-submits when 4 digits entered"
+    - "Passcode setup auto-proceeds when 4 digits entered"
+    - "Lean SDK loading requires wait strategy (5+ seconds)"
+    - "Bank credential fields are provided by third-party SDK"
+    - "Connection success screen is modal and requires explicit close"
+    - "Portfolio view shows account structure immediately after linking"
+  
+  performance_considerations:
+    - "Lean SDK initialization can take 5+ seconds"
+    - "Bank authentication may involve additional verification steps in production"
+    - "Dashboard balance sync may be delayed"
+
+quality_metrics:
+  total_elements: 14
+  elements_with_stable_ids: 8
+  elements_with_dynamic_content: 4
+  elements_using_coordinates: 6
+  stability_score: "57%"

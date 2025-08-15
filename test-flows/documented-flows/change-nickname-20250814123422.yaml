@@ -1,0 +1,349 @@
+# Change Nickname Flow Documentation
+# Documented by ios-app-navigator agent using MCP Mobile tools
+
+metadata:
+  name: "Change Nickname Flow"
+  description: "Complete flow to navigate to Settings/Profile and change user nickname from 'Victor' to 'TestUser123'"
+  timestamp: "2025-08-14T12:34:22+02:00"
+  platform: "android"
+  device: "emulator-5554"
+  app_version: "com.vault22.next.uae.develop"
+  test_data_used:
+    phone: "569661789"
+    otp: "0000"
+    passcode: "0000"
+
+# Document EVERY interaction in order
+steps:
+  - step: 1
+    action: "terminate_app"
+    screen: "system"
+    element:
+      description: "Terminate Vault22 app to start fresh"
+      element_type: "System Action"
+      accessibility_id: "N/A"
+      selector_for_test: "driver.terminateApp('com.vault22.next.uae.develop')"
+      has_stable_id: true
+      contains_dynamic_data: false
+    result: "App terminated successfully"
+    
+  - step: 2
+    action: "launch_app"
+    screen: "system"
+    element:
+      description: "Launch Vault22 app"
+      element_type: "System Action"
+      accessibility_id: "N/A"
+      selector_for_test: "driver.launchApp()"
+      has_stable_id: true
+      contains_dynamic_data: false
+    result: "App launched, loading screen appeared"
+    wait_strategy: "wait for app initialization"
+    wait_duration: "3000"
+    
+  - step: 3
+    action: "verify"
+    screen: "passcode_entry"
+    element:
+      description: "Passcode entry screen with phone number display"
+      element_type: "Screen"
+      accessibility_id: "N/A"
+      selector_for_test: "should contain 'Enter Vault22 Passcode'"
+      has_stable_id: false
+      contains_dynamic_data: true
+      recommendation: "Add testID='passcode-entry-screen'"
+    result: "Passcode entry screen displayed with phone +971569661789"
+    
+  - step: 4
+    action: "type"
+    screen: "passcode_entry"
+    element:
+      description: "Passcode input area (auto-focus)"
+      element_type: "Input Field"
+      accessibility_id: "N/A"
+      selector_for_test: "mobile_type_keys"
+      has_stable_id: false
+      contains_dynamic_data: false
+      recommendation: "Add testID='passcode-input-field'"
+    input_value: "0000"
+    result: "Passcode entered, automatically submitted, navigated to dashboard"
+    
+  - step: 5
+    action: "verify"
+    screen: "dashboard"
+    element:
+      description: "Main dashboard with net worth and navigation tabs"
+      element_type: "Screen"
+      accessibility_id: "N/A"
+      selector_for_test: "should contain 'Net worth'"
+      has_stable_id: false
+      contains_dynamic_data: true
+      recommendation: "Add testID='dashboard-screen'"
+    result: "Dashboard loaded successfully with AED0 net worth"
+    
+  - step: 6
+    action: "click"
+    screen: "dashboard"
+    element:
+      description: "Menu tab in bottom navigation"
+      element_type: "ImageView"
+      accessibility_id: "Menu"
+      selector_for_test: "~Menu"
+      coordinates_clicked: {x: 1274, y: 2840}
+      has_stable_id: true
+      contains_dynamic_data: false
+    result: "Menu screen opened"
+    
+  - step: 7
+    action: "verify"
+    screen: "menu"
+    element:
+      description: "Menu screen with profile showing current nickname"
+      element_type: "Screen"
+      accessibility_id: "N/A"
+      selector_for_test: "should contain 'Victor'"
+      has_stable_id: false
+      contains_dynamic_data: true
+      recommendation: "Add testID='menu-screen'"
+    result: "Menu screen displayed with profile showing 'Victor'"
+    
+  - step: 8
+    action: "click"
+    screen: "menu"
+    element:
+      description: "Settings menu option"
+      element_type: "ImageView"
+      accessibility_id: "Settings"
+      selector_for_test: "~Settings"
+      coordinates_clicked: {x: 720, y: 1911}
+      has_stable_id: true
+      contains_dynamic_data: false
+    result: "Settings screen opened"
+    
+  - step: 9
+    action: "verify"
+    screen: "settings"
+    element:
+      description: "Settings screen with Profile option at top"
+      element_type: "Screen"
+      accessibility_id: "N/A"
+      selector_for_test: "should contain 'Profile'"
+      has_stable_id: false
+      contains_dynamic_data: false
+      recommendation: "Add testID='settings-screen'"
+    result: "Settings screen displayed with various options"
+    
+  - step: 10
+    action: "click"
+    screen: "settings"
+    element:
+      description: "Profile settings option - Your personal information"
+      element_type: "ImageView"
+      accessibility_id: "Profile\nYour personal information"
+      selector_for_test: "~Profile"
+      coordinates_clicked: {x: 720, y: 667}
+      has_stable_id: true
+      contains_dynamic_data: false
+    result: "Security verification required - passcode entry appeared"
+    
+  - step: 11
+    action: "type"
+    screen: "passcode_verification"
+    element:
+      description: "Passcode verification for sensitive settings"
+      element_type: "Input Field"
+      accessibility_id: "N/A"
+      selector_for_test: "mobile_type_keys"
+      has_stable_id: false
+      contains_dynamic_data: false
+      recommendation: "Add testID='security-passcode-input'"
+    input_value: "0000"
+    result: "Passcode accepted, Profile settings screen opened"
+    
+  - step: 12
+    action: "verify"
+    screen: "profile_settings"
+    element:
+      description: "Profile settings screen with personal information fields"
+      element_type: "Screen"
+      accessibility_id: "N/A"
+      selector_for_test: "should contain 'Profile settings'"
+      has_stable_id: false
+      contains_dynamic_data: false
+      recommendation: "Add testID='profile-settings-screen'"
+    result: "Profile settings displayed with nickname 'Victor'"
+    
+  - step: 13
+    action: "click"
+    screen: "profile_settings"
+    element:
+      description: "Nickname field showing current value"
+      element_type: "ImageView"
+      accessibility_id: "Nickname\nVictor"
+      selector_for_test: "android=new UiSelector().description(\"Nickname\")"
+      coordinates_clicked: {x: 720, y: 760}
+      has_stable_id: false
+      contains_dynamic_data: true
+      recommendation: "Add testID='nickname-field' (separate from dynamic content)"
+    result: "Nickname edit modal opened with text field focused"
+    
+  - step: 14
+    action: "verify"
+    screen: "nickname_edit"
+    element:
+      description: "Nickname edit modal with text field and keyboard"
+      element_type: "Modal"
+      accessibility_id: "N/A"
+      selector_for_test: "should contain edit field"
+      has_stable_id: false
+      contains_dynamic_data: false
+      recommendation: "Add testID='nickname-edit-modal'"
+    result: "Edit modal displayed with 'Victor' pre-selected"
+    
+  - step: 15
+    action: "clear_text"
+    screen: "nickname_edit"
+    element:
+      description: "Clear existing nickname text by multiple backspace"
+      element_type: "EditText"
+      accessibility_id: "N/A"
+      selector_for_test: "clear text field"
+      has_stable_id: false
+      contains_dynamic_data: false
+      recommendation: "Add testID='nickname-input-field'"
+    result: "Existing text cleared, field is empty"
+    wait_strategy: "use backspace key events"
+    wait_duration: "100ms per character"
+    
+  - step: 16
+    action: "type"
+    screen: "nickname_edit"
+    element:
+      description: "Nickname input field for new value"
+      element_type: "EditText"
+      accessibility_id: "N/A"
+      selector_for_test: "mobile_type_keys"
+      has_stable_id: false
+      contains_dynamic_data: false
+      recommendation: "Add testID='nickname-input-field'"
+    input_value: "TestUser123"
+    result: "New nickname entered successfully"
+    
+  - step: 17
+    action: "click"
+    screen: "nickname_edit"
+    element:
+      description: "Update button to save changes"
+      element_type: "Button"
+      accessibility_id: "Update"
+      selector_for_test: "~Update"
+      coordinates_clicked: {x: 1055, y: 2770}
+      has_stable_id: true
+      contains_dynamic_data: false
+    result: "Changes saved, returned to profile settings screen"
+    
+  - step: 18
+    action: "verify"
+    screen: "profile_settings"
+    element:
+      description: "Profile settings screen showing updated nickname"
+      element_type: "ImageView"
+      accessibility_id: "Nickname\nTestUser123"
+      selector_for_test: "should contain 'TestUser123'"
+      has_stable_id: false
+      contains_dynamic_data: true
+      recommendation: "Separate verification of nickname value from field"
+    result: "Nickname successfully changed to 'TestUser123'"
+
+# Elements that were observed during the flow
+observed_elements:
+  - description: "Cancel button in nickname edit modal"
+    accessibility_id: "Cancel"
+    purpose: "Allow users to cancel nickname changes"
+  
+  - description: "Back button in various screens"
+    accessibility_id: "Back navigation"
+    purpose: "Navigate backwards in the flow"
+  
+  - description: "Other profile fields (First name, Surname, etc.)"
+    accessibility_id: "Various"
+    purpose: "Complete user profile management"
+
+# What was verified at the end
+assertions:
+  - type: "element_visible"
+    element: "Nickname field with new value"
+    accessibility_id: "Nickname\nTestUser123"
+    expected: "TestUser123"
+    actual: "TestUser123"
+    passed: true
+    
+  - type: "text_changed"
+    element: "Nickname display"
+    accessibility_id: "Profile nickname"
+    expected: "Changed from Victor to TestUser123"
+    actual: "Successfully changed"
+    passed: true
+
+# Summary for test writers
+test_ready_selectors:
+  menu_tab: "~Menu"
+  settings_option: "~Settings"
+  profile_option: "~Profile"
+  update_button: "~Update"
+  cancel_button: "~Cancel"
+
+problematic_selectors:
+  - element: "Nickname field"
+    current_selector: "accessibility contains dynamic content"
+    issue: "Contains both label and current value in one accessibility ID"
+    workaround: "Use partial match or XPath to find element"
+  
+  - element: "Passcode input fields"
+    current_selector: "No direct selectors available"
+    issue: "Input fields not individually accessible"
+    workaround: "Use mobile_type_keys for direct input"
+  
+  - element: "Profile settings screen elements"
+    current_selector: "Mixed accessibility support"
+    issue: "Some fields lack individual testIDs"
+    workaround: "Use text content or position-based selectors"
+
+recommendations:
+  stability_improvements:
+    - "Add testID='passcode-entry-screen' to passcode screen"
+    - "Add testID='dashboard-screen' to main dashboard"
+    - "Add testID='menu-screen' to menu screen"
+    - "Add testID='settings-screen' to settings screen"
+    - "Add testID='profile-settings-screen' to profile screen"
+    - "Add testID='nickname-field' to nickname field (separate from value)"
+    - "Add testID='nickname-input-field' to nickname edit field"
+    - "Add testID='nickname-edit-modal' to edit modal"
+    - "Add testID='security-passcode-input' to security verification"
+  
+  test_writing_notes:
+    - "Passcode entry requires security verification when accessing Profile"
+    - "Text input fields auto-submit in some cases (passcode)"
+    - "Clear text fields before entering new content to avoid concatenation"
+    - "Nickname field combines label and value in accessibility ID"
+    - "Wait for screen transitions after navigation actions"
+    - "Use coordinates as fallback when accessibility IDs are unavailable"
+  
+  android_specific_notes:
+    - "Use mobile_type_keys for text input instead of direct field interaction"
+    - "Backspace clearing requires multiple key events for long text"
+    - "Screen loading states may require wait strategies"
+    - "Navigation tabs use ImageView elements with good accessibility labels"
+
+# Overall flow quality score
+quality_metrics:
+  total_elements: 18
+  elements_with_stable_ids: 6
+  elements_with_dynamic_content: 5
+  elements_using_coordinates: 7
+  stability_score: "33%"  # (6/18) * 100 - needs improvement
+
+flow_complexity: "Medium"
+security_requirements: "Passcode verification required for profile access"
+success_rate: "100%"
+execution_time: "approximately 2-3 minutes manual execution"

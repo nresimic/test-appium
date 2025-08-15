@@ -1,26 +1,70 @@
-import WelcomeScreen from '../screens/welcome.screen';
-import { takeScreenshot } from '../utils/screenshot.utils';
+import { WelcomeScreen, AuthScreen } from '../screens';
+import { step } from '@wdio/allure-reporter';
+import { 
+    attachScreenshot,
+    SmartTestIsolation,
+    TestIsolationLevel 
+} from '../utils';
 
-describe('Vault22 App Tests', () => {
+describe('App Launch Tests', () => {
+    beforeEach(async () => {
+        // App launch tests need clean state for consistent behavior
+        await SmartTestIsolation.prepareForTest(TestIsolationLevel.FULL_CLEAN);
+    });
     it('Should launch the app successfully', async () => {
-        // Wait for welcome screen to be ready
-        await WelcomeScreen.waitForScreen();
+        await step('Launch app and verify welcome screen', async () => {
+            await WelcomeScreen.waitForScreen();
+            
+            const isDisplayed = await WelcomeScreen.isScreenDisplayed();
+            expect(isDisplayed).toBe(true);
+            
+            await attachScreenshot('App launched successfully');
+        });
         
-        const isDisplayed = await WelcomeScreen.isScreenDisplayed();
-        expect(isDisplayed).toBe(true);
-        await takeScreenshot('app-launched');
+        await step('Verify welcome screen elements', async () => {
+            const loginButton = await WelcomeScreen.loginButton;
+            expect(await loginButton.isDisplayed()).toBe(true);
+            expect(await loginButton.isEnabled()).toBe(true);
+            
+        });
     });
     
-    it('Should click on Login using Phone Number button', async () => {
-        await WelcomeScreen.tapLoginButton();
-        await takeScreenshot('after-login-tap');
-        
-        // Just verify we successfully navigated (button click worked)
-        const isAndroid = driver.capabilities.platformName === 'Android';
-        const appId = isAndroid 
-            ? await driver.getCurrentPackage()
-            : 'iOS app active'; // iOS doesn't have getBundleId in newer versions
+    it('Should navigate to login screen from welcome', async () => {
+        await step('Tap login button', async () => {
+            await WelcomeScreen.tapLoginButton();
             
-        expect(appId).toBeTruthy();
+            await attachScreenshot('After login button tap');
+        });
+        
+        await step('Verify navigation was successful', async () => {
+            const isAndroid = driver.capabilities.platformName === 'Android';
+            const appId = isAndroid 
+                ? await driver.getCurrentPackage()
+                : 'iOS app active';
+                
+            expect(appId).toBeTruthy();
+            
+            const phoneInput = await AuthScreen.phoneInput;
+            expect(await phoneInput.isExisting()).toBe(true);
+        });
+    });
+    
+    it('Should handle app backgrounding and foregrounding', async () => {
+        await step('Launch app', async () => {
+            await WelcomeScreen.waitForScreen();
+            const isDisplayed = await WelcomeScreen.isScreenDisplayed();
+            expect(isDisplayed).toBe(true);
+        });
+        
+        await step('Put app in background', async () => {
+            await driver.execute('mobile: backgroundApp', { seconds: 3 });
+        });
+        
+        await step('Verify app returns to foreground correctly', async () => {
+            const isDisplayed = await WelcomeScreen.isScreenDisplayed();
+            expect(isDisplayed).toBe(true);
+            
+            await attachScreenshot('App after foregrounding');
+        });
     });
 });

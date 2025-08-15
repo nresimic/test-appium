@@ -2,6 +2,9 @@
   "name": "vault22-testing",
   "version": "1.0.0",
   "main": "index.js",
+  "workspaces": [
+    "test-runner-ui"
+  ],
   "scripts": {
     "test": "npm run test:android && npm run test:ios",
     "test:android": "npx tsx node_modules/.bin/wdio config/wdio.android.conf.ts",
@@ -46,6 +49,7 @@
   },
   "dependencies": {
     "axios": "^1.11.0",
-    "dotenv": "^17.2.1"
+    "dotenv": "^17.2.1",
+    "ios-simulator-mcp": "^1.4.0"
   }
 }
