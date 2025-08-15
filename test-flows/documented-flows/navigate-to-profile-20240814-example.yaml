@@ -1,0 +1,171 @@
+# Flow Documentation: Navigate to Profile
+# This is an EXAMPLE of what ios-app-navigator should produce
+
+metadata:
+  name: "Navigate to Profile"
+  description: "Complete navigation from dashboard to user profile settings with passcode verification"
+  timestamp: "2024-08-14T10:30:00Z"
+  platform: "android"
+  device: "pixel_7"
+  app_version: "1.0.0-UAE-59"
+  test_data_used:
+    phone: "569661789"
+    otp: "not used"
+    passcode: "0000"
+
+steps:
+  - step: 1
+    action: "verify"
+    screen: "Dashboard"
+    
+    element:
+      description: "Dashboard header text"
+      element_type: "StaticText"
+      accessibility_id: "Dashboard"
+      selector_for_test: "~Dashboard"
+      has_stable_id: true
+      contains_dynamic_data: false
+    
+    result: "Dashboard loaded successfully"
+    wait_strategy: "wait for element visible"
+    wait_duration: 5000
+
+  - step: 2
+    action: "click"
+    screen: "Dashboard"
+    
+    element:
+      description: "Menu tab in bottom navigation"
+      element_type: "Tab"
+      accessibility_id: "Menu"
+      selector_for_test: "~Menu"
+      has_stable_id: true
+      contains_dynamic_data: false
+    
+    result: "Menu screen opened"
+
+  - step: 3
+    action: "click"
+    screen: "Menu"
+    
+    element:
+      description: "Profile option in menu list"
+      element_type: "Image"
+      accessibility_id: "V\nProfile\nVictor"
+      selector_for_test: "~V\nProfile\nVictor"
+      has_stable_id: false
+      contains_dynamic_data: true
+      fallback_selector: "android=new UiSelector().descriptionContains('Profile')"
+      coordinates_clicked: {x: 196, y: 400}
+      recommendation: "Add Semantics(label: 'menu-profile-option')"
+      suggested_file_to_update: "/lib/presentation/menu/menu_screen.dart"
+    
+    result: "Passcode screen appeared"
+
+  - step: 4
+    action: "click"
+    screen: "Passcode Verification"
+    
+    element:
+      description: "Passcode input area"
+      element_type: "SecureTextField"
+      accessibility_id: "Enter Vault22 Passcode"
+      selector_for_test: "~Enter Vault22 Passcode"
+      has_stable_id: true
+      contains_dynamic_data: false
+    
+    result: "Keyboard appeared"
+
+  - step: 5
+    action: "type"
+    screen: "Passcode Verification"
+    
+    element:
+      description: "Numeric keyboard"
+      element_type: "Keyboard"
+    
+    input_value: "0000"
+    result: "Passcode entered and auto-submitted"
+    wait_strategy: "wait for screen transition"
+    wait_duration: 2000
+
+  - step: 6
+    action: "verify"
+    screen: "Profile Settings"
+    
+    element:
+      description: "Profile settings header"
+      element_type: "StaticText"
+      accessibility_id: "Profile settings"
+      selector_for_test: "~Profile settings"
+      has_stable_id: true
+      contains_dynamic_data: false
+    
+    result: "Profile screen loaded"
+
+observed_elements:
+  - description: "Nickname field"
+    accessibility_id: "Nickname\nVictor"
+    purpose: "User can edit nickname"
+    
+  - description: "Phone number display"
+    accessibility_id: "+971569661789"
+    purpose: "Shows user's phone"
+    
+  - description: "First name field"
+    accessibility_id: "First name\nVictor"
+    purpose: "User can edit first name"
+
+assertions:
+  - type: "element_visible"
+    element: "Profile settings header"
+    accessibility_id: "Profile settings"
+    expected: "visible"
+    actual: "visible"
+    passed: true
+    
+  - type: "element_visible"
+    element: "Personal section"
+    accessibility_id: "Personal"
+    expected: "visible"
+    actual: "visible"
+    passed: true
+
+test_ready_selectors:
+  dashboard_tab: "~Dashboard"
+  menu_tab: "~Menu"
+  profile_menu_item: "~V\nProfile\nVictor"  # WARNING: Dynamic content
+  passcode_input: "~Enter Vault22 Passcode"
+  profile_header: "~Profile settings"
+  nickname_field: "getDynamicSelector('Nickname')"  # Use helper for dynamic content
+  first_name_field: "getDynamicSelector('First name')"
+
+problematic_selectors:
+  - element: "Profile menu item"
+    current_selector: "~V\nProfile\nVictor"
+    issue: "Contains user's initial and name - will change per user"
+    workaround: "Use descriptionContains('Profile') or add stable testID"
+    
+  - element: "Nickname field"
+    current_selector: "~Nickname\nVictor"
+    issue: "Contains actual nickname value"
+    workaround: "Use getDynamicSelector('Nickname') helper"
+
+recommendations:
+  stability_improvements:
+    - "Add testID='menu-profile-option' to profile menu item"
+    - "Add testID='profile-nickname-field' to nickname input"
+    - "Add testID='profile-first-name-field' to first name input"
+  
+  test_writing_notes:
+    - "Passcode screen appears when accessing sensitive areas"
+    - "Passcode auto-submits after 4 digits - no submit button needed"
+    - "Profile fields show current values in accessibility IDs"
+    - "Use getDynamicSelector() helper for fields with values"
+
+quality_metrics:
+  total_elements: 8
+  elements_with_stable_ids: 5
+  elements_with_dynamic_content: 3
+  elements_using_coordinates: 1
+  stability_score: "62.5%"  # 5/8 * 100

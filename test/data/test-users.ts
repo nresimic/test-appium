@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker';
 
-interface TestUser {
+export interface TestUser {
     phoneNumber: string;
     otp: string;
     passcode: string;
@@ -34,7 +34,7 @@ export const TestUsers = {
     
     // Existing user without bank account (fixed data)
     userWithoutBankAccount: {
-        phoneNumber: '569661789',  // Different phone number
+        phoneNumber: '554595453',  // Different phone number
         otp: '0000',
         passcode: '0000',
         firstName: 'John',

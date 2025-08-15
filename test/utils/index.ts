@@ -1,21 +1,14 @@
-/**
- * Centralized exports for all utility functions
- * Following 2024 WebdriverIO best practices
- */
-
-// Wait utilities
 export * from './wait.utils';
-
-// Gesture utilities  
 export * from './gesture.utils';
-
-// Screenshot utilities
-export * from './screenshot.utils';
-
-// Platform utilities
+export * from './allure.utils';
+export * from './debug.utils';
 export * from './platform.utils';
+export * from './navigation.utils';
+export * from './reset.utils';
+export * from './test-isolation.utils';
+export * from './keyboard.utils';
+export * from './post-login.utils';
 
-// Re-export commonly used functions for convenience
 export {
     waitForDisplayed,
     verifyElementDisplayed,
@@ -32,9 +25,16 @@ export {
 } from './gesture.utils';
 
 export {
-    takeScreenshot,
-    takeScreenshotAsBase64
-} from './screenshot.utils';
+    attachScreenshot,
+    attachScreenshotWithContext,
+    attachValidationScreenshot,
+    attachScreenshotSequence
+} from './allure.utils';
+
+export {
+    captureDebugInfo,
+    quickDebugCapture
+} from './debug.utils';
 
 export {
     isIOS,
@@ -42,3 +42,32 @@ export {
     getPlatform,
     getPlatformSelector
 } from './platform.utils';
+
+export {
+    navigateToHomeScreen,
+    ensureOnDashboard
+} from './navigation.utils';
+
+export {
+    clearAppAndActivate,
+    reloadSession,
+    terminateAndActivateApp,
+    resetAppState,
+    ResetStrategy
+} from './reset.utils';
+
+export {
+    hideKeyboard,
+    isKeyboardShown,
+    waitForKeyboard,
+    waitForKeyboardToDisappear,
+    typeAndHideKeyboard,
+    clearTypeAndHideKeyboard,
+    pressEnterKey,
+    pressTabKey,
+    withKeyboardHidden
+} from './keyboard.utils';
+
+export {
+    PostLoginUtils
+} from './post-login.utils';

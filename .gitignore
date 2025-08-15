@@ -31,6 +31,8 @@ apps/android/*.apk
 apps/android/*.aab
 apps/ios/*.ipa
 apps/ios/*.app
+apps/ios/*.app.zip
+apps/ios/*.zip
 
 # Allow test APK for CI
 !apps/android/app-test.apk

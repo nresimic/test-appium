@@ -1,0 +1,68 @@
+# Flow Registry - Tracks all documented flows and their test implementation status
+# This file is updated by both ios-app-navigator (when creating flows) and write-test agent (when implementing tests)
+
+flows:
+  - id: "navigate-to-profile-20240814-example"
+    name: "Navigate to Profile"
+    file: "documented-flows/navigate-to-profile-20240814-example.yaml"
+    created_date: "2024-08-14T10:30:00Z"
+    created_by: "ios-app-navigator"
+    platform: "android"
+    status: "documented"  # documented | in_progress | implemented | outdated
+    test_file: null
+    test_implemented_date: null
+    notes: "Example flow showing profile navigation with passcode"
+    
+  - id: "change-nickname-20250814123422"
+    name: "Change Nickname Flow"
+    file: "documented-flows/change-nickname-20250814123422.yaml"
+    created_date: "2025-08-14T12:34:22Z"
+    created_by: "ios-app-navigator"
+    platform: "android"
+    status: "implemented"
+    test_file: "test/e2e/settings/profile-nickname.e2e.ts"
+    test_implemented_date: "2025-08-14T12:45:00Z"
+    notes: "Complete flow to change user nickname with security verification"
+    
+  - id: "gender-selection-20250814163108"
+    name: "Gender Selection in Profile Settings"
+    file: "documented-flows/gender-selection-20250814163108.yaml"
+    created_date: "2025-08-14T16:31:08Z"
+    created_by: "ios-app-navigator"
+    platform: "android"
+    status: "implemented"
+    test_file: "test/e2e/settings/profile.e2e.ts"
+    test_implemented_date: "2025-08-14T16:45:00Z"
+    notes: "Complete gender selection flow with modal interaction, all 4 gender options tested"
+    
+  - id: "bank-linking-registration-20250814123600"
+    name: "Bank Linking Registration Flow"
+    file: "documented-flows/bank-linking-registration-20250814123600.yaml"
+    created_date: "2025-08-14T12:36:00Z"
+    created_by: "ios-app-navigator"
+    platform: "ios"
+    status: "implemented"
+    test_file: "test/e2e/auth/registration.e2e.ts"
+    test_implemented_date: "2025-08-14T20:30:00Z"
+    notes: "Complete flow from new user registration through bank account linking via Lean Mockbank Two"
+    
+  # Example of implemented flow:
+  # - id: "login-flow-20240813-1430"
+  #   name: "Login Flow"
+  #   file: "documented-flows/login-flow-20240813-1430.yaml"
+  #   created_date: "2024-08-13T14:30:00Z"
+  #   created_by: "ios-app-navigator"
+  #   platform: "ios"
+  #   status: "implemented"
+  #   test_file: "test/e2e/auth/login.e2e.ts"
+  #   test_implemented_date: "2024-08-13T15:00:00Z"
+  #   notes: "Basic login flow with OTP"
+
+# Statistics
+stats:
+  total_flows: 4
+  documented: 1
+  in_progress: 0
+  implemented: 3
+  outdated: 0
+  coverage_percentage: 75  # (implemented / total) * 100

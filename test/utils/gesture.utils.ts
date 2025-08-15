@@ -1,8 +1,3 @@
-/**
- * Gesture utility functions for WebdriverIO mobile tests
- * Migrated from helpers/gestures.ts following 2024 best practices
- */
-
 export enum SwipeDirection {
     UP = 'up',
     DOWN = 'down',
@@ -10,10 +5,7 @@ export enum SwipeDirection {
     RIGHT = 'right'
 }
 
-/**
- * Perform swipe gesture with platform-specific handling
- */
-export async function swipe(direction: SwipeDirection): Promise<void> {
+export async function swipe(direction: SwipeDirection) {
     const isIOS = driver.capabilities.platformName === 'iOS';
     
     if (isIOS) {
@@ -26,11 +18,7 @@ export async function swipe(direction: SwipeDirection): Promise<void> {
     }
 }
 
-/**
- * Scroll to element by performing swipe gestures
- * Returns true if element becomes visible, false if max scrolls reached
- */
-export async function scrollToElement(selector: string, maxScrolls: number = 5): Promise<boolean> {
+export async function scrollToElement(selector: string, maxScrolls: number = 5) {
     for (let i = 0; i < maxScrolls; i++) {
         if (await $(selector).isDisplayed()) {
             return true;
@@ -40,14 +28,11 @@ export async function scrollToElement(selector: string, maxScrolls: number = 5):
     return false;
 }
 
-/**
- * Scroll to element with custom swipe direction
- */
 export async function scrollToElementWithDirection(
     selector: string, 
     direction: SwipeDirection = SwipeDirection.UP,
     maxScrolls: number = 5
-): Promise<boolean> {
+) {
     for (let i = 0; i < maxScrolls; i++) {
         if (await $(selector).isDisplayed()) {
             return true;
@@ -57,30 +42,35 @@ export async function scrollToElementWithDirection(
     return false;
 }
 
-/**
- * Perform swipe up gesture (most common)
- */
-export async function swipeUp(): Promise<void> {
+export async function swipeUp() {
     await swipe(SwipeDirection.UP);
 }
 
-/**
- * Perform swipe down gesture  
- */
-export async function swipeDown(): Promise<void> {
+export async function swipeDown(){
     await swipe(SwipeDirection.DOWN);
 }
 
-/**
- * Perform swipe left gesture
- */
-export async function swipeLeft(): Promise<void> {
+export async function swipeLeft() {
     await swipe(SwipeDirection.LEFT);
 }
 
-/**
- * Perform swipe right gesture
- */
-export async function swipeRight(): Promise<void> {
+export async function swipeRight() {
     await swipe(SwipeDirection.RIGHT);
+}
+
+export async function scrollToElementMobile(element: WebdriverIO.Element, iosLabelText: string) {
+    const isIOS = driver.capabilities.platformName === 'iOS';
+    
+    if (isIOS) {
+        try {
+            await driver.execute('mobile: scroll', {
+                direction: 'down',
+                predicateString: `label == "${iosLabelText}"`
+            });
+        } catch (e: any) {
+            console.log('Scroll not needed or failed:', e.message);
+        }
+    } else {
+        await element.scrollIntoView();
+    }
 }

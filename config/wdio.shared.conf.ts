@@ -1,4 +1,5 @@
 import type { Options } from '@wdio/types';
+import { captureDebugInfo } from '../test/utils/debug.utils';
 
 declare const driver: WebdriverIO.Browser;
 
@@ -7,12 +8,12 @@ export const config: Options.Testrunner = {
     framework: 'mocha',
     mochaOpts: {
         ui: 'bdd',
-        timeout: 60000
+        timeout: 120000
     },
-    logLevel: 'info',
+    logLevel: 'error', // Reduce logging to only errors
     bail: 0,
-    waitforTimeout: 30000,
-    connectionRetryTimeout: 120000,
+    waitforTimeout: 30000, // Standard timeout for element waits
+    connectionRetryTimeout: 120000, // Standard connection timeout
     connectionRetryCount: 3,
     services: [],
     reporters: ['spec'],
@@ -23,10 +24,17 @@ export const config: Options.Testrunner = {
         console.log(`Starting ${(capabilities as any).platformName} test session...`);
     },
     
-    afterTest: async function(test, _context, { passed }) {
+    afterTest: async function(test, _context, { error, passed }) {
         if (!passed) {
-            const platform = (driver.capabilities.platformName as string).toLowerCase();
-            await driver.saveScreenshot(`./reports/screenshots/${platform}-failed-${test.title.replace(/ /g, '-')}.png`);
+            // Capture comprehensive debug information on failure
+            const capabilities = browser.capabilities as any;
+            await captureDebugInfo({
+                testName: test.title,
+                testFile: test.file,
+                error: error,
+                platform: capabilities.platformName,
+                deviceName: capabilities.deviceName || capabilities['appium:deviceName']
+            });
         }
     }
 };
