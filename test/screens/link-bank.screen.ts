@@ -219,6 +219,23 @@ class LinkBank extends BaseScreen {
         await verifyElementDisplayed(bankGroup);
         await expect(bankGroup).toBeDisplayed();
         
+        console.log('💰 Waiting for bank balance to sync...');
+        await smartWait(
+            async () => {
+                const currentDesc = await bankGroup.getAttribute('content-desc').catch(() => '');
+                const hasNonZeroBalance = !currentDesc.includes('0.00');
+                if (!hasNonZeroBalance) {
+                    console.log(`⏳ Bank balance still syncing: ${currentDesc}`);
+                }
+                return hasNonZeroBalance;
+            },
+            {
+                timeout: 60000,
+                interval: 15000,
+                message: 'Bank balance did not sync within 60 seconds'
+            }
+        );
+        
         console.log('🏦 Expanding Bank section to verify connection...');
         await bankGroup.click();
         
@@ -242,7 +259,7 @@ class LinkBank extends BaseScreen {
         const accountDesc = await leanAccount.getAttribute('content-desc');
         expect(accountDesc).toContain('Lean Mockbank Two Bank');
         
-        console.log('✅ Bank account successfully linked and verified!');
+        console.log('✅ Bank account successfully linked and balance synced!');
     }
 
 }

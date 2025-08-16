@@ -74,7 +74,7 @@ class PortfolioScreen extends BaseScreen {
     }
 
     get addAccountManuallyOption() {
-        return this.getElement('~Add an account manually');
+        return this.getElement('~Add a manual account');
     }
 
     // Have/Owe selection

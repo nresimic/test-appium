@@ -151,13 +151,25 @@ export default function TestHistory() {
 
   if (loading) {
     return (
-      <div className="glass rounded-2xl shadow-xl p-8">
-        <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="space-y-4">
-            <div className="h-20 bg-gray-200 rounded"></div>
-            <div className="h-20 bg-gray-200 rounded"></div>
-            <div className="h-20 bg-gray-200 rounded"></div>
+      <div className="glass rounded-2xl shadow-xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-800">Test History</h2>
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 text-purple-500 animate-spin" />
+              <span className="text-sm text-gray-600">Loading...</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-8">
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="relative">
+              <Loader2 className="w-12 h-12 text-purple-500 animate-spin" />
+              <div className="absolute inset-0 w-12 h-12 border-2 border-purple-100 rounded-full"></div>
+            </div>
+            <p className="text-gray-600 text-lg mt-4 font-medium">Loading test history...</p>
+            <p className="text-gray-400 text-sm mt-2">Fetching completed test runs and syncing with AWS</p>
           </div>
         </div>
       </div>
