@@ -3,16 +3,24 @@ import AuthScreen from '../screens/auth/auth.screen';
 import LinkBankScreen from '../screens/link-bank.screen';
 import { TestUser } from '../data/test-users';
 import { PostLoginUtils } from 'test/utils';
+import { withErrorHandling } from '../utils/error.utils';
 
 export class RegistrationFlow {
 
     static async registerNewUserWithoutAddingBankAccount(user: TestUser) {
-        await WelcomeScreen.waitForScreen();
-        await WelcomeScreen.tapLoginButton();
-        await AuthScreen.performRegistration(user);
-
-        await LinkBankScreen.skipBankLinking();
-        return await AuthScreen.verifyDashboard();
+        return await withErrorHandling(
+            async () => {
+                await WelcomeScreen.waitForScreen();
+                await WelcomeScreen.tapLoginButton();
+                await AuthScreen.performRegistration(user);
+                await PostLoginUtils.waitForPostLoginScreen();
+                return await AuthScreen.verifyDashboard();
+            },
+            {
+                operation: 'Registration without bank account',
+                recoverable: false
+            }
+        );
     }
 
     // static async registerNewUserWithAddingBankAccount(user: TestUser) {
@@ -31,17 +39,32 @@ export class RegistrationFlow {
     // }
 
     static async registerNewUserWithBankLinking(user: TestUser, bankUsername: string, bankPassword: string) {
-        await WelcomeScreen.waitForScreen();
-        await WelcomeScreen.tapLoginButton();
-        await AuthScreen.performRegistration(user);
-        await PostLoginUtils.waitForPostLoginScreen();
-        
-        await LinkBankScreen.linkBankAccount(bankUsername, bankPassword);
+        return await withErrorHandling(
+            async () => {
+                await WelcomeScreen.waitForScreen();
+                await WelcomeScreen.tapLoginButton();
+                await AuthScreen.performRegistration(user);
+                await PostLoginUtils.waitForPostLoginScreen();
+                await LinkBankScreen.linkBankAccount(bankUsername, bankPassword);
+            },
+            {
+                operation: 'Registration with bank linking',
+                recoverable: false
+            }
+        );
     }
 
     static async navigateToRegistration() {
-        await WelcomeScreen.waitForScreen();
-        await WelcomeScreen.tapLoginButton();
+        return await withErrorHandling(
+            async () => {
+                await WelcomeScreen.waitForScreen();
+                await WelcomeScreen.tapLoginButton();
+            },
+            {
+                operation: 'Navigate to registration',
+                recoverable: true
+            }
+        );
     }
     
 }

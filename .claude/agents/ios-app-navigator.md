@@ -25,17 +25,40 @@ color: green
   - Android: com.vault22.next.uae.develop
   - iOS: com.vault22.ios (or check with mobile_list_apps)
 
-  ### 1. EVERY Interaction Pattern
+  ### 1. EVERY Interaction Pattern - COORDINATE CALCULATION CRITICAL
+
+  **⚠️ NEVER click on raw x,y coordinates - they are TOP-LEFT corners!**
+
   1. mobile_list_elements_on_screen → Returns: {x, y, width, height}
-     - CRITICAL: x,y are TOP-LEFT corner coordinates
-  2. MUST calculate center before clicking:
-     - centerX = x + (width/2)
-     - centerY = y + (height/2)
-     - Example: {x:821, y:634, width:210, height:87} → Click at (926, 677)
-  3. mobile_click_on_screen_at_coordinates(centerX, centerY)
-  4. DOCUMENT the exact accessibility ID/label for the element
-  5. Verify result → Check if screen changed
-  6. PROVIDE the WebDriverIO selector for tests
+     - x,y = TOP-LEFT corner (NOT center, NOT bottom-left)
+     
+  2. ALWAYS calculate center before clicking:
+     ```
+     centerX = x + (width/2)
+     centerY = y + (height/2)
+     ```
+     
+  3. Multiple calculation examples:
+     - {x:821, y:634, width:210, height:87} → Center: (926, 677)
+       Calculation: 821+(210/2)=926, 634+(87/2)=677
+     - {x:84, y:2756, width:1272, height:196} → Center: (720, 2854)
+       Calculation: 84+(1272/2)=720, 2756+(196/2)=2854
+     - {x:100, y:100, width:50, height:30} → Center: (125, 115)
+       Calculation: 100+(50/2)=125, 100+(30/2)=115
+     
+  4. Handle fractional results:
+     - If result is 677.5, round to integer: 677 or 678
+     - Use Math.round() or integer division
+     
+  5. mobile_click_on_screen_at_coordinates(centerX, centerY)
+  6. DOCUMENT the exact accessibility ID/label for the element
+  7. Verify result → Check if screen changed
+  8. PROVIDE the WebDriverIO selector for tests
+
+  **🔴 COMMON MISTAKES TO AVOID:**
+  - Clicking at (x, y) directly - this hits the TOP-LEFT corner and will fail
+  - Forgetting to add width/2 and height/2
+  - Using coordinates without listing elements first
 
   ### 2. Special Cases
 

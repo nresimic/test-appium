@@ -53,6 +53,10 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [fetchingBuilds, setFetchingBuilds] = useState(false);
   const [submittingDeviceFarm, setSubmittingDeviceFarm] = useState(false);
+  
+  // Tag selection state
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const availableTags = ['@smoke', '@regression', '@critical', '@auth', '@banking', '@portfolio', '@settings'];
 
   useEffect(() => {
     fetchTestFiles();
@@ -64,6 +68,18 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
       fetchDeviceFarmDevices();
     }
   }, [platform, runLocation]);
+
+  // Auto-select @ios tag when iOS platform is selected
+  useEffect(() => {
+    if (platform === 'ios') {
+      if (!selectedTags.includes('@ios')) {
+        setSelectedTags(prev => [...prev, '@ios']);
+      }
+    } else {
+      // Remove @ios tag when switching to Android
+      setSelectedTags(prev => prev.filter(tag => tag !== '@ios'));
+    }
+  }, [platform]);
 
   const fetchTestFiles = async () => {
     setLoadingTests(true);
@@ -132,7 +148,8 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
       testMode,
       test: testMode === 'single' ? selectedTest : undefined,
       testCase: testMode === 'single' ? selectedTestCase : undefined,
-      runLocation
+      runLocation,
+      tags: selectedTags
     };
     
     console.log('Running test with config:', config);
@@ -466,6 +483,49 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
             >
               Single Test
             </button>
+          </div>
+        </div>
+
+        {/* Tag Selection */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">
+            Test Tags {platform === 'ios' && <span className="text-blue-600">(@ios required)</span>}
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {/* iOS tag - always visible when iOS platform */}
+            {platform === 'ios' && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                @ios (required)
+              </span>
+            )}
+            
+            {/* Other available tags */}
+            {availableTags.map(tag => (
+              <button
+                key={tag}
+                onClick={() => {
+                  if (selectedTags.includes(tag)) {
+                    setSelectedTags(prev => prev.filter(t => t !== tag));
+                  } else {
+                    setSelectedTags(prev => [...prev, tag]);
+                  }
+                }}
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                  selectedTags.includes(tag)
+                    ? 'bg-green-100 text-green-800 border border-green-200'
+                    : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {selectedTags.length > 0 ? (
+              <>Selected: {selectedTags.join(', ')}</>
+            ) : (
+              'Select tags to filter tests, or run all tests'
+            )}
           </div>
         </div>
 

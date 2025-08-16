@@ -18,7 +18,7 @@ import {
 } from '../../utils';
 
 describe('Currency Settings', () => {
-    const TEST_CURRENCY = 'USD';
+    const TEST_CURRENCY = 'EUR';
     const ALTERNATIVE_CURRENCY = 'SAR';
     const DEFAULT_CURRENCY = 'AED';
     const TEST_USER = TestUsers.validUserWithoutBankAcc;

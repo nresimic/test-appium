@@ -1,41 +1,24 @@
 export const TIMEOUTS = {
-    // UI Operations
-    ANIMATION: 500,       // UI animations, keyboard appearance
-    QUICK: 3000,         // Fast UI operations
-    STANDARD: 10000,     // Standard element wait
-    EXTENDED: 40000,     // Complex operations, network requests
-    
-    // App States
-    APP_LAUNCH: 30000,   // App startup
-    LOGIN: 30000,        // Login flow completion
-    LOGOUT: 15000,       // Logout flow completion
-    SESSION: 60000,      // Session creation/reload
-    
-    // Network
-    API_CALL: 20000,     // API requests
-    
-    // Specific Operations
-    PASSCODE_SCREEN: 10000,  // Passcode screen appearance
-    DASHBOARD_LOAD: 15000,   // Dashboard fully loaded
-    SEARCH: 5000,            // Search results appear
-    MODAL: 5000,             // Modal appearance/dismissal
-    
-    // Retry & Polling
-    POLLING_INTERVAL: 500,   // Check interval for conditions
-    RETRY_DELAY: 1000,       // Base delay between retries
-    STABILITY_CHECK: 300,    // Element stability check
-    
-    // Character input delay for iOS
-    CHAR_INPUT_DELAY: 100,   // Delay between character inputs on iOS
-    
-    // Field clear/click delay
-    FIELD_INTERACTION_DELAY: 500, // Delay after clicking/clearing fields
-    
-    // Third-party SDK loading
-    LEAN_SDK_LOADING: 5000,      // Lean SDK initialization time
-    
-    // App termination
-    APP_TERMINATION_DELAY: 1000,  // Wait after app termination
+    ANIMATION: 500,
+    QUICK: 3000,
+    STANDARD: 10000,
+    EXTENDED: 40000,
+    APP_LAUNCH: 30000,
+    LOGIN: 30000,
+    LOGOUT: 15000,
+    SESSION: 60000,
+    API_CALL: 20000,
+    PASSCODE_SCREEN: 10000,
+    DASHBOARD_LOAD: 15000,
+    SEARCH: 5000,
+    MODAL: 5000,
+    POLLING_INTERVAL: 500,
+    RETRY_DELAY: 1000,
+    STABILITY_CHECK: 300,
+    CHAR_INPUT_DELAY: 100,
+    FIELD_INTERACTION_DELAY: 500,
+    LEAN_SDK_LOADING: 5000,
+    APP_TERMINATION_DELAY: 1000,
 } as const;
 
 export function getTimeout(timeout: keyof typeof TIMEOUTS): number {
@@ -50,7 +33,6 @@ export function getAdjustedTimeout(
 ): number {
     const baseTimeout = getTimeout(timeout);
     
-    // iOS tends to be slower with animations
     if (platform?.toLowerCase() === 'ios') {
         return Math.round(baseTimeout * 1.2);
     }
@@ -67,13 +49,11 @@ export async function smartWait(
     } = {}
 ) {
     if (typeof durationOrCondition === 'number') {
-        // Simple delay - but log it for tracking
         if (durationOrCondition > 1000) {
             console.log(`⏱️ Waiting ${durationOrCondition}ms...`);
         }
         await browser.pause(durationOrCondition);
     } else {
-        // Wait for condition
         const { timeout = TIMEOUTS.STANDARD, interval = TIMEOUTS.POLLING_INTERVAL, message } = options;
         await browser.waitUntil(durationOrCondition, {
             timeout,
@@ -116,7 +96,6 @@ export async function waitForElementStable(
                 lastPosition = currentPosition;
             }
         } catch (error) {
-            // Element might not be visible yet
             stableCount = 0;
         }
         
@@ -165,13 +144,11 @@ export async function verifyElementDisplayed(
         }
         message += ` - Selector: ${selector}`;
         
-        throw new Error(message);
+        const { ElementNotFoundError } = await import('./error.utils');
+        throw new ElementNotFoundError(selector, timeout);
     }
 }
 
-/**
- * Click an element only if it exists and is displayed
- */
 export async function clickIfExists(
     element: WebdriverIO.Element,
     timeout: number = TIMEOUTS.STANDARD
@@ -184,10 +161,6 @@ export async function clickIfExists(
     return false;
 }
 
-/**
- * Wait for loading indicators to disappear
- * Platform-aware and doesn't throw errors
- */
 export async function waitForLoadingComplete(
     platform: 'ios' | 'android',
     timeout: number = TIMEOUTS.EXTENDED
@@ -211,31 +184,20 @@ export async function waitForLoadingComplete(
                 await waitForDisplayed(loadingElement, timeout, true);  // Wait for it to NOT be displayed
             }
         } catch {
-            // Selector not supported or other error, continue
             continue;
         }
     }
 }
 
-/**
- * Wait for screen transition by waiting for one element to disappear
- * and another to appear
- */
 export async function waitForScreenTransition(
     elementToDisappear: WebdriverIO.Element,
     elementToAppear: WebdriverIO.Element,
     timeout: number = TIMEOUTS.EXTENDED
 ): Promise<void> {
-    // Wait for old element to disappear
     await waitForDisplayed(elementToDisappear, timeout / 2, true);
-
-    // Wait for new element to appear
     await waitForDisplayed(elementToAppear, timeout / 2);
 }
 
-/**
- * Retry an action if it fails with exponential backoff
- */
 export async function retryAction<T>(
     action: () => Promise<T>,
     options: {
@@ -246,45 +208,39 @@ export async function retryAction<T>(
         onRetry?: (attempt: number, error: Error) => Promise<void>;
     } = {}
 ): Promise<T> {
-    const {
-        maxRetries = 3,
-        delayMs = TIMEOUTS.RETRY_DELAY,
-        description = 'Action',
-        exponentialBackoff = true,
-        onRetry
-    } = options;
-    
+    const { maxRetries = 3, delayMs = TIMEOUTS.RETRY_DELAY, description = 'Action', exponentialBackoff = true, onRetry } = options;
     let lastError: Error;
     
     for (let i = 0; i < maxRetries; i++) {
         try {
-            if (i > 0) {
-                console.log(`🔄 Retry ${i}/${maxRetries - 1} for: ${description}`);
-            }
+            if (i > 0) console.log(`🔄 Retry ${i}/${maxRetries - 1} for: ${description}`);
             return await action();
         } catch (error) {
             lastError = error as Error;
             console.log(`❌ ${description} failed (attempt ${i + 1}/${maxRetries}): ${lastError.message}`);
             
             if (i < maxRetries - 1) {
-                // Call onRetry hook if provided
-                if (onRetry) {
-                    await onRetry(i + 1, lastError);
-                }
-                
-                // Calculate delay with optional exponential backoff
-                const delay = exponentialBackoff ? delayMs * Math.pow(2, i) : delayMs;
-                await smartWait(delay);
+                await executeRetryDelay(i, delayMs, exponentialBackoff, onRetry, lastError);
             }
         }
     }
     
-    throw new Error(`${description} failed after ${maxRetries} attempts: ${lastError!.message}`);
+    const { TestError } = await import('./error.utils');
+    throw new TestError(`${description} failed after ${maxRetries} attempts`, { originalError: lastError!.message }, false);
 }
 
-/**
- * Retry clicking an element with smart recovery
- */
+async function executeRetryDelay(
+    attempt: number,
+    delayMs: number,
+    exponentialBackoff: boolean,
+    onRetry?: (attempt: number, error: Error) => Promise<void>,
+    error?: Error
+) {
+    if (onRetry && error) await onRetry(attempt + 1, error);
+    const delay = exponentialBackoff ? delayMs * Math.pow(2, attempt) : delayMs;
+    await smartWait(delay);
+}
+
 export async function retryClick(
     element: WebdriverIO.Element,
     options: {
@@ -296,41 +252,32 @@ export async function retryClick(
     const { maxRetries = 3, waitFirst = true, scrollIntoView = false } = options;
     
     await retryAction(async () => {
-        // Wait for element to be displayed if requested
         if (waitFirst) {
             await waitForDisplayed(element, TIMEOUTS.STANDARD);
         }
         
-        // Scroll into view if requested
         if (scrollIntoView) {
             await element.scrollIntoView();
             await smartWait(TIMEOUTS.ANIMATION);
         }
         
-        // Ensure element is clickable
         await element.waitForClickable({
             timeout: TIMEOUTS.QUICK,
             timeoutMsg: 'Element not clickable'
         });
         
-        // Click the element
         await element.click();
     }, {
         maxRetries,
         description: 'Click element',
         onRetry: async (attempt) => {
-            // Try to recover from common issues
             if (attempt === 2) {
-                // On second retry, try dismissing keyboard if it might be blocking
                 await dismissKeyboard();
             }
         }
     });
 }
 
-/**
- * Retry setting value in a field with smart clearing
- */
 export async function retrySetValue(
     element: WebdriverIO.Element,
     value: string,
@@ -343,34 +290,9 @@ export async function retrySetValue(
     const { clearFirst = true, clickFirst = true, platform } = options;
     
     await retryAction(async () => {
-        // Click field if requested
-        if (clickFirst) {
-            await element.click();
-            await waitAfterFieldInteraction();
-        }
-        
-        // Clear field if requested
-        if (clearFirst) {
-            await element.clearValue();
-            await waitAfterFieldInteraction();
-        }
-        
-        // Set the value
-        if (platform === 'ios') {
-            // iOS sometimes needs character-by-character input
-            for (const char of value) {
-                await element.addValue(char);
-                await waitAfterInput('ios');
-            }
-        } else {
-            await element.setValue(value);
-        }
-        
-        // Verify the value was set correctly
-        const actualValue = await element.getValue();
-        if (actualValue !== value) {
-            throw new Error(`Value mismatch. Expected: "${value}", Got: "${actualValue}"`);
-        }
+        await prepareFieldForInput(element, clickFirst, clearFirst);
+        await setFieldValue(element, value, platform);
+        await verifyFieldValue(element, value);
     }, {
         maxRetries: 3,
         description: `Set value "${value}"`,
@@ -378,9 +300,36 @@ export async function retrySetValue(
     });
 }
 
-/**
- * Wait for element and get it when ready
- */
+async function prepareFieldForInput(element: WebdriverIO.Element, clickFirst: boolean, clearFirst: boolean) {
+    if (clickFirst) {
+        await element.click();
+        await waitAfterFieldInteraction();
+    }
+    
+    if (clearFirst) {
+        await element.clearValue();
+        await waitAfterFieldInteraction();
+    }
+}
+
+async function setFieldValue(element: WebdriverIO.Element, value: string, platform?: 'ios' | 'android') {
+    if (platform === 'ios') {
+        for (const char of value) {
+            await element.addValue(char);
+            await waitAfterInput('ios');
+        }
+    } else {
+        await element.setValue(value);
+    }
+}
+
+async function verifyFieldValue(element: WebdriverIO.Element, expectedValue: string) {
+    const actualValue = await element.getValue();
+    if (actualValue !== expectedValue) {
+        throw new Error(`Value mismatch. Expected: "${expectedValue}", Got: "${actualValue}"`);
+    }
+}
+
 export async function getElementWhenReady(
     selector: string | (() => WebdriverIO.Element),
     timeout: number = TIMEOUTS.STANDARD
@@ -399,12 +348,7 @@ export async function getElementWhenReady(
     return element;
 }
 
-/**
- * Wait for iOS system modals (like notification permission) to be dismissed
- * Call this before waiting for app elements when system modals might appear
- */
 export async function waitForSystemModalToDismiss(timeout: number = TIMEOUTS.EXTENDED) {
-    // Only check for alerts on iOS - Android handles permissions differently
     if (driver.isIOS) {
         await browser.waitUntil(async () => {
             try {
@@ -421,134 +365,96 @@ export async function waitForSystemModalToDismiss(timeout: number = TIMEOUTS.EXT
             console.log('No system modal detected or timeout waiting for dismissal');
         });
         
-        // Small buffer after modal dismissal
         await smartWait(TIMEOUTS.ANIMATION);
     }
-    // For Android, we don't need to wait for system modals as they're handled differently
 }
 
-/**
- * Smart wait that combines multiple strategies for screen readiness
- */
 export async function waitForScreenReady(
     platform: 'ios' | 'android',
     uniqueElement?: WebdriverIO.Element,
     timeout: number = TIMEOUTS.EXTENDED
 ): Promise<void> {
-    // First, wait for any loading to complete
     await waitForLoadingComplete(platform, timeout / 2);
     
-    // If a unique element is provided, wait for it
     if (uniqueElement) {
         await waitForDisplayed(uniqueElement, timeout / 2);
     }
     
-    // Small stability pause
     await smartWait(TIMEOUTS.STABILITY_CHECK);
 }
 
-/**
- * Wait for passcode screen to appear
- * Specifically for the app's passcode re-authentication
- */
 export async function waitForPasscodeScreen(timeout: number = TIMEOUTS.PASSCODE_SCREEN): Promise<boolean> {
     const passcodeTitle = $('~Enter Vault22 Passcode');
     return await waitForDisplayed(passcodeTitle, timeout, false, 'Passcode Screen');
 }
 
-/**
- * Wait after entering text into a field
- * Handles platform-specific delays
- */
 export async function waitAfterInput(platform?: 'ios' | 'android'): Promise<void> {
     const delay = platform === 'ios' ? TIMEOUTS.CHAR_INPUT_DELAY : 50;
     await smartWait(delay);
 }
 
-/**
- * Wait for search results to update
- */
 export async function waitForSearchResults(): Promise<void> {
     await smartWait(TIMEOUTS.SEARCH);
 }
 
-/**
- * Wait after field interaction (click, clear, etc.)
- */
 export async function waitAfterFieldInteraction(): Promise<void> {
     await smartWait(TIMEOUTS.FIELD_INTERACTION_DELAY);
 }
 
-/**
- * Wait for modal to appear or disappear
- */
 export async function waitForModal(_appear: boolean = true): Promise<void> {
-    // Wait for modal animation to complete
-    // In future, we can use the appear parameter to wait for specific states
     await smartWait(TIMEOUTS.MODAL);
 }
 
-/**
- * Wait for animation to complete
- */
 export async function waitForAnimation(): Promise<void> {
     await smartWait(TIMEOUTS.ANIMATION);
 }
 
-/**
- * Wait after app termination
- */
 export async function waitAfterAppTermination(): Promise<void> {
     await smartWait(TIMEOUTS.APP_TERMINATION_DELAY);
 }
 
-/**
- * Dismiss keyboard if it's currently visible
- * Works for both iOS and Android platforms
- */
 export async function dismissKeyboard(): Promise<void> {
     try {
         const isKeyboardShown = await driver.isKeyboardShown();
         if (isKeyboardShown) {
             if (driver.isIOS) {
-                // iOS: Try multiple methods to dismiss keyboard
-                try {
-                    // Method 1: Press Done button if available
-                    const doneButton = await $('~Done');
-                    if (await doneButton.isDisplayed()) {
-                        await doneButton.click();
-                        return;
-                    }
-                } catch {
-                    // Continue to next method
-                }
-                
-                try {
-                    // Method 2: Hide keyboard directly
-                    await driver.hideKeyboard();
-                } catch {
-                    // Method 3: Tap outside keyboard area
-                    await driver.touchAction([
-                        { action: 'tap', x: 10, y: 10 }
-                    ]);
-                }
+                await dismissIOSKeyboard();
             } else {
-                // Android: Use hideKeyboard or press back
-                try {
-                    await driver.hideKeyboard();
-                } catch {
-                    // Fallback: Press back button
-                    await driver.pressKeyCode(4); // KEYCODE_BACK
-                }
+                await dismissAndroidKeyboard();
             }
         }
     } catch (error) {
-        // If keyboard detection fails, try to hide it anyway
         console.log('Could not detect keyboard state, attempting to dismiss anyway');
         try {
             await driver.hideKeyboard();
         } catch {
-            // Keyboard probably wasn't shown
         }
+    }
+}
+
+async function dismissIOSKeyboard() {
+    try {
+        const doneButton = await $('~Done');
+        if (await doneButton.isDisplayed()) {
+            await doneButton.click();
+            return;
+        }
+    } catch {
+    }
+    
+    try {
+        await driver.hideKeyboard();
+    } catch {
+        await driver.touchAction([
+            { action: 'tap', x: 10, y: 10 }
+        ]);
+    }
+}
+
+async function dismissAndroidKeyboard() {
+    try {
+        await driver.hideKeyboard();
+    } catch {
+        await driver.pressKeyCode(4);
     }
 }

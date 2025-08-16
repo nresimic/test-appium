@@ -16,7 +16,8 @@ import {
   Monitor,
   FileText,
   Loader2,
-  BarChart2
+  BarChart2,
+  RefreshCw
 } from 'lucide-react';
 
 interface TestRun {
@@ -49,18 +50,31 @@ export default function TestHistory() {
   const [history, setHistory] = useState<TestRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingReportId, setLoadingReportId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    fetchHistory();
-    // Refresh every 5 seconds
+    // Initial load with sync
+    fetchHistoryWithSync();
+    
+    // Refresh every 5 seconds - only fetch history, not Device Farm
     const interval = setInterval(() => {
-      fetchHistory();
-      updateDeviceFarmTests();
+      fetchHistoryOnly();
     }, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  const fetchHistory = async () => {
+  const fetchHistoryWithSync = async () => {
+    try {
+      // First sync Device Farm data, then fetch history
+      await syncDeviceFarmData();
+      await fetchHistoryOnly();
+    } catch (error) {
+      console.error('Failed to fetch history with sync:', error);
+      setLoading(false);
+    }
+  };
+
+  const fetchHistoryOnly = async () => {
     try {
       const response = await fetch('/api/test/history');
       if (response.ok) {
@@ -77,17 +91,36 @@ export default function TestHistory() {
       setLoading(false);
     }
   };
-  
-  const updateDeviceFarmTests = async () => {
+
+  const syncDeviceFarmData = async () => {
     try {
-      // Sync all Device Farm tests
-      await fetch('/api/device-farm/sync');
-      // Also update running tests
-      await fetch('/api/device-farm/status', { method: 'POST' });
+      const response = await fetch('/api/device-farm/sync');
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Device Farm sync:', data.message);
+        return data;
+      }
     } catch (error) {
-      console.error('Failed to update Device Farm tests:', error);
+      console.warn('Device Farm sync failed:', error);
+      throw error;
     }
   };
+
+  const handleManualSync = async () => {
+    setSyncing(true);
+    try {
+      showToast('info', 'Syncing...', 'Fetching latest data from AWS Device Farm...');
+      const result = await syncDeviceFarmData();
+      await fetchHistoryOnly();
+      showToast('success', 'Sync Complete', result?.message || 'Device Farm data synchronized');
+    } catch (error) {
+      showToast('error', 'Sync Failed', 'Could not sync with AWS Device Farm');
+    } finally {
+      setSyncing(false);
+    }
+  };
+  
+  // Device Farm syncing should only happen when explicitly needed, not on every interval
 
   const getResultIcon = (result?: string) => {
     switch (result) {
@@ -173,15 +206,29 @@ export default function TestHistory() {
         <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-800">Completed Test Runs</h2>
-            <a
-              href="/api/allure-report/index.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 rounded-lg shadow-md hover:shadow-lg transition-all"
-            >
-              <BarChart2 className="w-4 h-4" />
-              View Full Report
-            </a>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleManualSync}
+                disabled={syncing}
+                className={`flex items-center gap-2 px-4 py-2 text-sm text-white rounded-lg shadow-md hover:shadow-lg transition-all ${
+                  syncing 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600'
+                }`}
+              >
+                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing...' : 'Sync AWS'}
+              </button>
+              <a
+                href="/api/allure-report/index.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 rounded-lg shadow-md hover:shadow-lg transition-all"
+              >
+                <BarChart2 className="w-4 h-4" />
+                View Full Report
+              </a>
+            </div>
           </div>
         </div>
         

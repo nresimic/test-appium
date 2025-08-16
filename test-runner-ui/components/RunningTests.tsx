@@ -26,6 +26,12 @@ interface RunningTest {
   progress?: number;
   currentStep?: string;
   elapsedTime?: number;
+  tags?: string[];
+  testMode?: 'full' | 'single';
+  selectedTest?: string;
+  selectedTestCase?: string;
+  executingTests?: string[];
+  currentlyRunningTest?: string;
 }
 
 export default function RunningTests() {
@@ -43,11 +49,11 @@ export default function RunningTests() {
 
   const fetchRunningTests = async () => {
     try {
-      // Fetch from both local and Device Farm
-      const [localResponse, historyResponse, deviceFarmResponse] = await Promise.all([
+      // Fetch local tests, Device Farm running tests, and history
+      const [localResponse, deviceFarmResponse, historyResponse] = await Promise.all([
         fetch('/api/test/run'), // Gets all running local tests
-        fetch('/api/test/history'), // Gets history including running Device Farm tests
-        fetch('/api/device-farm/running') // Get running tests directly from Device Farm
+        fetch('/api/device-farm/running'), // Gets current running Device Farm tests
+        fetch('/api/test/history') // Gets history including running Device Farm tests
       ]);
 
       // Check if responses are OK and content type is JSON
@@ -55,23 +61,24 @@ export default function RunningTests() {
         ? await localResponse.json() 
         : { tests: [] };
       
-      const historyData = historyResponse.ok && historyResponse.headers.get('content-type')?.includes('application/json')
-        ? await historyResponse.json()
-        : { history: [] };
-      
       const deviceFarmData = deviceFarmResponse.ok && deviceFarmResponse.headers.get('content-type')?.includes('application/json')
         ? await deviceFarmResponse.json()
         : { runningTests: [] };
+      
+      const historyData = historyResponse.ok && historyResponse.headers.get('content-type')?.includes('application/json')
+        ? await historyResponse.json()
+        : { history: [] };
 
       // Filter for running tests only
       const runningLocal = localData.tests?.filter((t: any) => 
         t.status === 'RUNNING' || t.status === 'PENDING'
       ) || [];
 
-      // Use Device Farm running tests directly, or fall back to history
-      const runningDeviceFarm = deviceFarmData.runningTests || historyData.history?.filter((h: any) => 
-        (h.status === 'RUNNING' || h.status === 'PENDING' || h.status === 'SCHEDULING') && h.isDeviceFarm
-      ) || [];
+      // Get Device Farm running tests (prioritize direct API call over history)
+      const runningDeviceFarm = deviceFarmData.runningTests || 
+        historyData.history?.filter((h: any) => 
+          (h.status === 'RUNNING' || h.status === 'PENDING' || h.status === 'SCHEDULING') && h.isDeviceFarm
+        ) || [];
 
       // Calculate elapsed time for each test
       const now = Date.now();
@@ -82,6 +89,15 @@ export default function RunningTests() {
       }));
 
       setRunningTests(testsWithElapsedTime);
+      
+      // Debug logging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Running tests update:', {
+          local: runningLocal.length,
+          deviceFarm: runningDeviceFarm.length,
+          total: testsWithElapsedTime.length
+        });
+      }
     } catch (error) {
       console.error('Failed to fetch running tests:', error);
     } finally {
@@ -124,12 +140,25 @@ export default function RunningTests() {
 
   if (loading) {
     return (
-      <div className="glass rounded-2xl shadow-xl p-8">
-        <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="space-y-4">
-            <div className="h-24 bg-gray-200 rounded"></div>
-            <div className="h-24 bg-gray-200 rounded"></div>
+      <div className="glass rounded-2xl shadow-xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-800">Running Tests</h2>
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+              <span className="text-sm text-gray-600">Loading...</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-8">
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="relative">
+              <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+              <div className="absolute inset-0 w-12 h-12 border-2 border-blue-100 rounded-full"></div>
+            </div>
+            <p className="text-gray-600 text-lg mt-4 font-medium">Checking for running tests...</p>
+            <p className="text-gray-400 text-sm mt-2">This usually takes just a moment</p>
           </div>
         </div>
       </div>
@@ -212,8 +241,62 @@ export default function RunningTests() {
                   </p>
                 )}
 
+                {/* Test Execution Details */}
+                <div className="mt-3 space-y-2">
+                  {/* Test Mode and Selection */}
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                      {test.testMode === 'single' ? 'Single Test' : 'Full Suite'}
+                    </span>
+                    
+                    {test.tags && test.tags.length > 0 && (
+                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded">
+                        Tags: {test.tags.join(', ')}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Selected Test File */}
+                  {test.selectedTest && (
+                    <p className="text-xs text-gray-600">
+                      <span className="font-medium">Test File:</span> {test.selectedTest.split('/').pop()}
+                    </p>
+                  )}
+
+                  {/* Selected Test Case */}
+                  {test.selectedTestCase && (
+                    <p className="text-xs text-gray-600">
+                      <span className="font-medium">Test Case:</span> {test.selectedTestCase}
+                    </p>
+                  )}
+
+                  {/* Currently Running Test */}
+                  {test.currentlyRunningTest && (
+                    <div className="p-2 bg-yellow-50 border border-yellow-200 rounded">
+                      <p className="text-xs text-yellow-800">
+                        <span className="font-medium">Currently Executing:</span> {test.currentlyRunningTest}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* List of Executing Tests */}
+                  {test.executingTests && test.executingTests.length > 0 && (
+                    <div className="border border-gray-200 rounded p-2">
+                      <p className="text-xs font-medium text-gray-700 mb-1">Tests in this run:</p>
+                      <div className="max-h-20 overflow-y-auto">
+                        {test.executingTests.map((testTitle, index) => (
+                          <div key={index} className="text-xs text-gray-600 py-0.5 flex items-center gap-1">
+                            <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
+                            {testTitle}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Test ID */}
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-400 mt-2">
                   ID: {test.id}
                 </p>
               </div>

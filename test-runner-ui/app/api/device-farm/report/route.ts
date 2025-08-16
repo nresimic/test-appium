@@ -114,6 +114,12 @@ export async function GET(request: Request) {
       });
     }
     
+    // Debug: Log all artifacts to understand what's available
+    console.log(`📋 Found ${artifacts.length} artifacts for run ${runArn}:`);
+    artifacts.forEach((artifact, index) => {
+      console.log(`  ${index + 1}. ${artifact.name} (${artifact.type}, .${artifact.extension})`);
+    });
+    
     // Check for S3 report URL in artifacts first (v8+ testspec)
     const reportInfoArtifact = artifacts.find(artifact => 
       artifact.name?.includes('report-info.txt')
@@ -147,18 +153,33 @@ export async function GET(request: Request) {
       artifact.name?.includes('allure-report-complete.html')
     );
     
+    console.log(`🔍 Looking for allure-report-complete.html: ${singleHtmlReport ? 'FOUND' : 'NOT FOUND'}`);
+    if (singleHtmlReport) {
+      console.log(`📄 Report artifact: ${singleHtmlReport.name}, URL: ${singleHtmlReport.url}`);
+    }
+    
     if (singleHtmlReport?.url) {
       // Try to upload to S3 automatically
       try {
-        console.log('Found Allure report, attempting S3 upload...');
-        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_URL || 'http://localhost:3001'}/api/device-farm/upload-to-s3`, {
+        console.log('🚀 Found Allure report, attempting S3 upload...');
+        
+        // Get the base URL from headers or use default
+        const protocol = request.headers.get('x-forwarded-proto') || 'http';
+        const host = request.headers.get('host') || 'localhost:3001';
+        const baseUrl = `${protocol}://${host}`;
+        
+        const uploadResponse = await fetch(`${baseUrl}/api/device-farm/upload-to-s3`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ runArn })
         });
         
+        console.log(`📊 Upload response status: ${uploadResponse.status}`);
+        
         if (uploadResponse.ok) {
           const uploadData: any = await uploadResponse.json();
+          console.log('📤 Upload response data:', uploadData);
+          
           if (uploadData.success && uploadData.s3Url) {
             console.log('✅ Auto-uploaded to S3:', uploadData.s3Url);
             return NextResponse.json({
@@ -170,12 +191,17 @@ export async function GET(request: Request) {
               requiresExtraction: false,
               source: 's3-auto'
             });
+          } else {
+            console.log('❌ Upload succeeded but no S3 URL returned');
           }
+        } else {
+          const errorText = await uploadResponse.text();
+          console.log(`❌ Upload failed: ${uploadResponse.status} - ${errorText}`);
         }
         
-        console.log('S3 upload failed, falling back to Device Farm URL');
+        console.log('⚠️ S3 upload failed, falling back to Device Farm URL');
       } catch (error) {
-        console.error('S3 upload error:', error);
+        console.error('💥 S3 upload error:', error);
       }
       
       // Fallback to direct Device Farm URL
@@ -199,7 +225,13 @@ export async function GET(request: Request) {
       // Try to extract and upload the HTML report from the zip
       try {
         console.log('Found Customer Artifacts, attempting to extract Allure report...');
-        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_URL || 'http://localhost:3001'}/api/device-farm/extract-and-upload`, {
+        
+        // Get the base URL from headers or use default
+        const protocol = request.headers.get('x-forwarded-proto') || 'http';
+        const host = request.headers.get('host') || 'localhost:3001';
+        const baseUrl = `${protocol}://${host}`;
+        
+        const uploadResponse = await fetch(`${baseUrl}/api/device-farm/extract-and-upload`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -242,13 +274,19 @@ export async function GET(request: Request) {
       });
     }
     
+    console.log('❌ No Allure report found - available artifacts:');
+    artifacts.forEach(artifact => {
+      console.log(`  - ${artifact.name} (${artifact.type}, .${artifact.extension})`);
+    });
+    
     return NextResponse.json({
       hasReport: false,
       message: 'No Allure report found in artifacts',
       availableArtifacts: artifacts.map(a => ({
         name: a.name,
         type: a.type,
-        extension: a.extension
+        extension: a.extension,
+        url: a.url
       }))
     });
     

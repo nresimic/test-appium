@@ -7,6 +7,7 @@ import {
     SmartTestIsolation,
     TestIsolationLevel 
 } from '../../utils';
+// No need to import tag utilities - just add @tags directly to test descriptions
 
 describe('Login Flow', () => {
     beforeEach(async () => {
@@ -14,7 +15,7 @@ describe('Login Flow', () => {
         await SmartTestIsolation.prepareForTest(TestIsolationLevel.FULL_CLEAN);
     });
     
-    it('Should login successfully with user having bank account', async () => {
+    it('Should login successfully with user having bank account @ios @android @auth @smoke', async () => {
         await step('Login with existing user', async () => {
             await LoginFlow.login(TestUsers.validUserWithBankAcc);            
         });

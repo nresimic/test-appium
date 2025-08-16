@@ -2,43 +2,14 @@ import axios, { AxiosInstance } from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createHash } from 'crypto';
-
-interface BitriseConfig {
-  apiToken: string;
-  appSlug: string;
-  baseUrl: string;
-  cacheDir: string;
-  appsDir: string;
-}
-
-interface BuildInfo {
-  buildNumber: number;
-  buildSlug: string;
-  status: string;
-  branch: string;
-  commitHash: string | null;
-  commitMessage: string | null;
-  triggeredAt: string;
-  finishedAt: string | null;
-}
-
-interface ArtifactInfo {
-  title: string;
-  slug: string;
-  artifactType: string;
-  fileSizeBytes: number;
-}
-
-interface BuildMetadata {
-  buildNumber: number;
-  buildSlug: string;
-  branch: string;
-  commitHash: string | null;
-  downloadedAt: string;
-  filePath: string;
-  fileSize: number;
-  checksum: string;
-}
+import { 
+  BitriseConfig, 
+  BuildInfo, 
+  ArtifactInfo, 
+  BuildMetadata, 
+  BitriseApiResponse, 
+  BitriseArtifactResponse 
+} from '../../types';
 
 export class BitriseService {
   private client: AxiosInstance;
@@ -177,7 +148,7 @@ export class BitriseService {
 
         if (allBuildsResponse.data.data?.length > 0) {
           console.log('Available branches with builds:');
-          const branches = new Set(allBuildsResponse.data.data.map((b: any) => b.branch));
+          const branches = new Set((allBuildsResponse.data as BitriseApiResponse).data.map(b => b.branch));
           branches.forEach(b => console.log(`  - ${b}`));
         }
         return null;
@@ -194,8 +165,8 @@ export class BitriseService {
         triggeredAt: build.triggered_at,
         finishedAt: build.finished_at
       };
-    } catch (error: any) {
-      if (error.response?.status === 401) {
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
         throw new Error('Authentication failed. Check your BITRISE_API_TOKEN');
       }
       throw error;
@@ -210,7 +181,7 @@ export class BitriseService {
       `/apps/${this.config.appSlug}/builds/${buildSlug}/artifacts`
     );
 
-    return response.data.data.map((artifact: any) => ({
+    return (response.data as BitriseArtifactResponse).data.map(artifact => ({
       title: artifact.title,
       slug: artifact.slug,
       artifactType: artifact.artifact_type,

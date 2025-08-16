@@ -1,43 +1,152 @@
 import { NextResponse } from 'next/server';
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import { promises as fs } from 'fs';
+import { TestConfig, TestCounters, TestRun, HistoryEntry, TestStorageData } from '../../../../../types';
 
 const execAsync = promisify(exec);
-
-interface TestConfig {
-  platform: 'ios' | 'android';
-  build: string;
-  device: string;
-  testMode: 'full' | 'single';
-  test?: string;
-  testCase?: string;
-}
 
 // Helper functions for persistent storage
 const getRunningTestsPath = () => {
   return path.join(process.cwd(), 'running-tests.json');
 };
 
-async function loadRunningTests(): Promise<Map<string, any>> {
+async function loadRunningTests(): Promise<Map<string, TestRun>> {
   try {
     const data = await fs.readFile(getRunningTestsPath(), 'utf-8');
-    const tests = JSON.parse(data);
-    return new Map(tests.map((t: any) => [t.id, t]));
+    const tests = JSON.parse(data) as TestStorageData[];
+    return new Map(tests.map((t: TestStorageData) => [t.id, t as unknown as TestRun]));
   } catch {
     return new Map();
   }
 }
 
-async function saveRunningTests(testsMap: Map<string, any>) {
+async function saveRunningTests(testsMap: Map<string, TestRun>) {
   const tests = Array.from(testsMap.values());
   await fs.writeFile(getRunningTestsPath(), JSON.stringify(tests, null, 2));
 }
 
-// Parse test results from WebdriverIO output
-function parseTestResults(output: string): { passed: number; failed: number; broken: number; skipped: number; total: number } {
-  const counters = {
+// Get expected tests based on configuration
+async function getExpectedTests(config: TestConfig): Promise<string[]> {
+  try {
+    const projectRoot = path.join(process.cwd(), '..');
+    
+    if (config.testMode === 'single' && config.test) {
+      // Single test file
+      const testFilePath = path.join(projectRoot, config.test);
+      const tests = await extractTestsFromFile(testFilePath);
+      
+      if (config.testCase) {
+        // Specific test case
+        return tests.filter(test => test.toLowerCase().includes(config.testCase!.toLowerCase()));
+      } else if (config.tags && config.tags.length > 0) {
+        // Filter by tags
+        return tests.filter(test => 
+          config.tags!.some(tag => test.toLowerCase().includes(tag.toLowerCase()))
+        );
+      } else {
+        // All tests in the file
+        return tests;
+      }
+    } else {
+      // Full suite
+      const testDir = path.join(projectRoot, 'test');
+      const testFiles = await findTestFiles(testDir);
+      let allTests: string[] = [];
+      
+      for (const filePath of testFiles) {
+        const testsInFile = await extractTestsFromFile(filePath);
+        allTests.push(...testsInFile);
+      }
+      
+      if (config.tags && config.tags.length > 0) {
+        // Filter by tags
+        return allTests.filter(test => 
+          config.tags!.some(tag => test.toLowerCase().includes(tag.toLowerCase()))
+        );
+      } else {
+        // All tests
+        return allTests;
+      }
+    }
+  } catch (error) {
+    console.error('Error getting expected tests:', error);
+    return [];
+  }
+}
+
+async function extractTestsFromFile(filePath: string): Promise<string[]> {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    const testPattern = /it(?:\.only)?\s*\(\s*['"`]([^'"`]+)['"`]/g;
+    const tests: string[] = [];
+    let match;
+    
+    while ((match = testPattern.exec(content)) !== null) {
+      tests.push(match[1]);
+    }
+    
+    return tests;
+  } catch (error) {
+    console.error(`Error reading test file ${filePath}:`, error);
+    return [];
+  }
+}
+
+async function findTestFiles(dir: string): Promise<string[]> {
+  const files: string[] = [];
+  
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      
+      if (entry.isDirectory()) {
+        const subFiles = await findTestFiles(fullPath);
+        files.push(...subFiles);
+      } else if (entry.name.endsWith('.e2e.ts') || entry.name.endsWith('.e2e.js')) {
+        files.push(fullPath);
+      }
+    }
+  } catch (error) {
+    console.error(`Error reading directory ${dir}:`, error);
+  }
+  
+  return files;
+}
+
+// Simple parsing to update currently running test (optional)
+async function parseTestOutput(runId: string, output: string) {
+  try {
+    const runningTests = await loadRunningTests();
+    const test = runningTests.get(runId);
+    if (!test) return;
+
+    // Just extract currently completed test for status update
+    const lines = output.split('\n');
+    for (const line of lines) {
+      if (line.includes('✓')) {
+        const testMatch = line.match(/✓\s*(.*?)(?:\s*\(\d+ms\))?$/);
+        if (testMatch && testMatch[1]) {
+          const testName = testMatch[1].trim();
+          if (testName && !testName.includes('spec')) {
+            test.currentlyRunningTest = testName;
+            runningTests.set(runId, test);
+            await saveRunningTests(runningTests);
+            break;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`Error parsing test output for ${runId}:`, error);
+  }
+}
+
+function parseTestResults(output: string): TestCounters {
+  const counters: TestCounters = {
     passed: 0,
     failed: 0,
     broken: 0,
@@ -47,72 +156,72 @@ function parseTestResults(output: string): { passed: number; failed: number; bro
   
   if (!output) return counters;
   
-  // Debug: Log a sample of the output to understand the format
   console.log('[TEST PARSER] Sample output:', output.substring(output.length - 500));
   
-  // Look for the spec reporter summary at the end
-  // Format: "Spec Files:	 1 passed, 1 failed, 2 skipped, 4 total"
-  const specFilesMatch = output.match(/Spec Files:\s*(\d+)\s+passed(?:,\s*(\d+)\s+failed)?(?:,\s*(\d+)\s+skipped)?(?:,\s*(\d+)\s+total)?/);
+  const parsedFromSummary = tryParseSummaryFormat(output, counters);
+  if (parsedFromSummary) return counters;
   
-  // Look for test results summary
-  // Format: "Tests:       13 passed, 1 failed, 7 skipped, 21 total"
+  const parsedFromMocha = tryParseMochaFormat(output, counters);
+  if (parsedFromMocha) return counters;
+  
+  const parsedFromMarkers = tryParseTestMarkers(output, counters);
+  if (parsedFromMarkers) return counters;
+  
+  counters.total = 1;
+  console.log('[TEST PARSER] No test counts found, using fallback');
+  return counters;
+}
+
+function tryParseSummaryFormat(output: string, counters: TestCounters): boolean {
   const testsMatch = output.match(/Tests:\s*(\d+)\s+passed(?:,\s*(\d+)\s+failed)?(?:,\s*(\d+)\s+skipped)?(?:,\s*(\d+)\s+total)?/);
   
-  // Alternative format from mocha
-  // Example: "13 passing (1m 30s)"
-  // Example: "13 passing (1m 30s)\n  1 failing\n  7 pending"
-  const passingMatch = output.match(/(\d+)\s+passing/);
-  const failingMatch = output.match(/(\d+)\s+failing/);
-  const pendingMatch = output.match(/(\d+)\s+pending/);
-  const skippedMatch = output.match(/(\d+)\s+skipped/);
-  
-  // Use Tests line if available (most accurate)
   if (testsMatch) {
     counters.passed = parseInt(testsMatch[1]) || 0;
     counters.failed = parseInt(testsMatch[2]) || 0;
     counters.skipped = parseInt(testsMatch[3]) || 0;
     counters.total = parseInt(testsMatch[4]) || 0;
     console.log('[TEST PARSER] Found Tests summary:', counters);
+    return true;
   }
-  // Otherwise try mocha format
-  else if (passingMatch || failingMatch || pendingMatch || skippedMatch) {
+  return false;
+}
+
+function tryParseMochaFormat(output: string, counters: TestCounters): boolean {
+  const passingMatch = output.match(/(\d+)\s+passing/);
+  const failingMatch = output.match(/(\d+)\s+failing/);
+  const pendingMatch = output.match(/(\d+)\s+pending/);
+  const skippedMatch = output.match(/(\d+)\s+skipped/);
+  
+  if (passingMatch || failingMatch || pendingMatch || skippedMatch) {
     if (passingMatch) counters.passed = parseInt(passingMatch[1]);
     if (failingMatch) counters.failed = parseInt(failingMatch[1]);
     if (pendingMatch) counters.skipped = parseInt(pendingMatch[1]);
     if (skippedMatch) counters.skipped = parseInt(skippedMatch[1]);
     counters.total = counters.passed + counters.failed + counters.skipped;
     console.log('[TEST PARSER] Found mocha format:', counters);
+    return true;
   }
+  return false;
+}
+
+function tryParseTestMarkers(output: string, counters: TestCounters): boolean {
+  const passedTests = (output.match(/✓/g) || []).length;
+  const failedTests = (output.match(/[✗✖]/g) || []).length;
+  const skippedTests = (output.match(/\s-\s/g) || []).length;
   
-  // If still no results, look for individual test results
-  if (counters.total === 0) {
-    // Count ✓ for passed tests
-    const passedTests = (output.match(/✓/g) || []).length;
-    // Count ✗ or ✖ for failed tests  
-    const failedTests = (output.match(/[✗✖]/g) || []).length;
-    // Count - for skipped/pending tests
-    const skippedTests = (output.match(/\s-\s/g) || []).length;
-    
-    if (passedTests > 0 || failedTests > 0 || skippedTests > 0) {
-      counters.passed = passedTests;
-      counters.failed = failedTests;
-      counters.skipped = skippedTests;
-      counters.total = passedTests + failedTests + skippedTests;
-      console.log('[TEST PARSER] Counted individual test markers:', counters);
-    }
+  if (passedTests > 0 || failedTests > 0 || skippedTests > 0) {
+    counters.passed = passedTests;
+    counters.failed = failedTests;
+    counters.skipped = skippedTests;
+    counters.total = passedTests + failedTests + skippedTests;
+    console.log('[TEST PARSER] Counted individual test markers:', counters);
+    return true;
   }
-  
-  // Fallback: if no tests detected, assume single test based on exit code
-  if (counters.total === 0) {
-    counters.total = 1;
-    console.log('[TEST PARSER] No test counts found, using fallback');
-  }
-  
-  return counters;
+  return false;
 }
 
 // Helper function to save test to history
-async function saveToHistory(runId: string, test: any, config: TestConfig) {
+async function saveToHistory(runId: string, test: TestRun, config: TestConfig) {
   try {
     const projectRoot = path.join(process.cwd(), '..');
     const historyPath = path.join(process.cwd(), 'test-history.json');
@@ -239,13 +348,27 @@ export async function POST(request: Request) {
       const testPath = config.test.startsWith('../') ? config.test.substring(3) : config.test;
       command = `npx wdio ${configFile} --spec ${testPath}`;
       
-      if (config.testCase) {
+      if (config.testCase && config.tags && config.tags.length > 0) {
+        // Combine test case and tags
+        const tagPattern = config.tags.join('.*');
+        command += ` --mochaOpts.grep "${config.testCase}.*${tagPattern}"`;
+      } else if (config.testCase) {
         // Run specific test case using grep
         command += ` --mochaOpts.grep "${config.testCase}"`;
+      } else if (config.tags && config.tags.length > 0) {
+        // Only tags for specific test file
+        const tagPattern = config.tags.join('.*');
+        command += ` --mochaOpts.grep "${tagPattern}"`;
       }
     } else {
       // Run full suite
       command = `npx wdio ${configFile}`;
+      
+      // Add tag filtering if tags are selected
+      if (config.tags && config.tags.length > 0) {
+        const tagPattern = config.tags.join('.*');
+        command += ` --mochaOpts.grep "${tagPattern}"`;
+      }
     }
     
     // Load existing running tests
@@ -256,7 +379,7 @@ export async function POST(request: Request) {
       id: runId,
       name: config.testMode === 'single' && config.test 
         ? `Single: ${config.test.split('/').pop()}`
-        : 'Full Test Suite',
+        : `Full Test Suite${config.tags && config.tags.length > 0 ? ` (${config.tags.join(', ')})` : ''}`,
       config,
       status: 'RUNNING',
       created: new Date().toISOString(),
@@ -264,7 +387,14 @@ export async function POST(request: Request) {
       device: config.device,
       platform: config.platform,
       build: config.build,
-      command
+      command,
+      // Test execution details
+      tags: config.tags,
+      testMode: config.testMode,
+      selectedTest: config.test,
+      selectedTestCase: config.testCase,
+      executingTests: await getExpectedTests(config), // Pre-populate based on selection
+      currentlyRunningTest: null
     });
     
     // Save to persistent storage
@@ -284,6 +414,9 @@ export async function POST(request: Request) {
     })
       .then(async ({ stdout, stderr }) => {
         console.log(`[TEST RUN ${runId}] Test completed successfully`);
+        // Parse final output for test names
+        await parseTestOutput(runId, stdout);
+        
         // Load current running tests
         const runningTests = await loadRunningTests();
         const test = runningTests.get(runId);
@@ -304,6 +437,11 @@ export async function POST(request: Request) {
       })
       .catch(async (error) => {
         console.error(`[TEST RUN ${runId}] Test failed:`, error.message);
+        // Parse output even on failure for test names
+        if (error.stdout) {
+          await parseTestOutput(runId, error.stdout);
+        }
+        
         // Load current running tests
         const runningTests = await loadRunningTests();
         const test = runningTests.get(runId);
@@ -328,10 +466,10 @@ export async function POST(request: Request) {
       message: 'Test started',
       command
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to start test:', error);
     return NextResponse.json({ 
-      error: error.message 
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
     }, { status: 500 });
   }
 }

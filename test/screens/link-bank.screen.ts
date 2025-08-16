@@ -8,6 +8,7 @@ import {
 } from '../utils/wait.utils';
 import { step } from '@wdio/allure-reporter';
 import { getDynamicSelector } from '../utils/selector.utils';
+import { safeOperation } from '../utils/error.utils';
 
 class LinkBank extends BaseScreen {
     get selectBankButton() {
@@ -159,16 +160,14 @@ class LinkBank extends BaseScreen {
     }
 
     async tapGetStarted() {
-        try {
+        await safeOperation(async () => {
             const overlay = await this.dismissOverlay;
-            const isOverlayVisible = await waitForDisplayed(overlay,  3000 );
+            const isOverlayVisible = await waitForDisplayed(overlay, 3000);
             if (isOverlayVisible) {
                 console.log('🚫 Dismissing Lean SDK overlay...');
                 await overlay.click();
             }
-        } catch (e) {
-            console.log('ℹ️ No overlay to dismiss, continuing...');
-        }
+        });
         
         const button = await this.getStartedButton;
         await verifyElementDisplayed(button);
@@ -184,7 +183,6 @@ class LinkBank extends BaseScreen {
         const passwordField = await this.passwordInput;
         await verifyElementDisplayed(passwordField);
         await passwordField.click();
-        // await driver.pause(500);
         await passwordField.setValue(password);
 
     }
@@ -202,16 +200,14 @@ class LinkBank extends BaseScreen {
     }
 
     async closeConnection() {
-        try {
+        await safeOperation(async () => {
             const overlay = await this.dismissOverlay;
             const isOverlayVisible = await waitForDisplayed(overlay, 3000);
             if (isOverlayVisible) {
                 console.log('🚫 Dismissing connection success overlay...');
                 await overlay.click();
             }
-        } catch (e) {
-            console.log('ℹ️ No overlay to dismiss on close, continuing...');
-        }
+        });
         
         const button = await this.closeButton;
         await verifyElementDisplayed(button);

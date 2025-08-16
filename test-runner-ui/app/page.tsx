@@ -7,14 +7,21 @@ import RunningTests from '@/components/RunningTests';
 import { Zap, History, Loader2, Home as HomeIcon } from 'lucide-react';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'run' | 'running' | 'history'>('run');
-
-  // Load tab from URL or localStorage on mount
-  useEffect(() => {
-    const savedTab = localStorage.getItem('activeTab');
-    if (savedTab === 'run' || savedTab === 'running' || savedTab === 'history') {
-      setActiveTab(savedTab);
+  const [activeTab, setActiveTab] = useState<'run' | 'running' | 'history'>(() => {
+    // Initialize from localStorage immediately to prevent flash
+    if (typeof window !== 'undefined') {
+      const savedTab = localStorage.getItem('activeTab');
+      if (savedTab === 'run' || savedTab === 'running' || savedTab === 'history') {
+        return savedTab;
+      }
     }
+    return 'run';
+  });
+  const [isClient, setIsClient] = useState(false);
+
+  // Track when we're on the client to prevent hydration mismatch
+  useEffect(() => {
+    setIsClient(true);
   }, []);
 
   // Save tab selection
@@ -22,6 +29,18 @@ export default function Home() {
     setActiveTab(tab);
     localStorage.setItem('activeTab', tab);
   };
+
+  // Show loading during hydration to prevent flash
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+          <span className="text-gray-600">Loading Test Runner...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
