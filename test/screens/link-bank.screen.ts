@@ -221,9 +221,21 @@ class LinkBank extends BaseScreen {
         
         console.log('🏦 Expanding Bank section to verify connection...');
         await bankGroup.click();
-        await driver.pause(4000);
-
+        
         const leanAccount = await this.leanMockbankAccount;
+        await smartWait(
+            async () => {
+                const exists = await leanAccount.isExisting().catch(() => false);
+                const displayed = exists ? await leanAccount.isDisplayed().catch(() => false) : false;
+                return displayed;
+            },
+            {
+                timeout: TIMEOUTS.STANDARD,
+                interval: TIMEOUTS.POLLING_INTERVAL,
+                message: 'Bank account details not displayed after expanding section'
+            }
+        );
+        
         await verifyElementDisplayed(leanAccount);
         await expect(leanAccount).toBeDisplayed();
         
