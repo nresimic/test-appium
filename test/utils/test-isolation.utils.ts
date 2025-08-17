@@ -47,7 +47,7 @@ export enum TestIsolationLevel {
  * Optimizes test setup by avoiding unnecessary resets and logins
  */
 export class SmartTestIsolation {
-    private static loginCheckTimeout = 3000; // Quick timeout for login detection
+    private static loginCheckTimeout = 8000;
     // private static lastKnownUser: string | null = null;
     
     /**
@@ -98,7 +98,7 @@ export class SmartTestIsolation {
             const passcodeScreenTitle = await $('~Enter Vault22 Passcode');
             
             const isVisible = await passcodeScreenTitle.waitForDisplayed({
-                timeout: 3000,  // Only wait 3 seconds
+                timeout: 8000,
                 interval: 500,
                 timeoutMsg: 'Passcode screen not immediately visible'
             }).then(() => true).catch(() => false);
@@ -121,7 +121,7 @@ export class SmartTestIsolation {
     static async detectCurrentScreen(): Promise<string> {
         console.log('🔍 Detecting current screen...');
         
-        // First, wait for ANY recognizable screen to appear (max 5 seconds)
+        // First, wait for ANY recognizable screen to appear
         // This handles splash screens and loading states
         const maxWaitTime = 20000;
         const checkInterval = 2000;

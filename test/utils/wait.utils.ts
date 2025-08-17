@@ -1,5 +1,5 @@
 export const TIMEOUTS = {
-    ANIMATION: 500,
+    ANIMATION: 300,
     QUICK: 3000,
     STANDARD: 10000,
     EXTENDED: 40000,
@@ -16,15 +16,15 @@ export const TIMEOUTS = {
     RETRY_DELAY: 1000,
     STABILITY_CHECK: 300,
     CHAR_INPUT_DELAY: 100,
-    FIELD_INTERACTION_DELAY: 500,
+    FIELD_INTERACTION_DELAY: 200,
     LEAN_SDK_LOADING: 5000,
     APP_TERMINATION_DELAY: 1000,
+    FAST_POLLING: 300,
+    ELEMENT_STABILITY_WAIT: 300,
 } as const;
 
 export function getTimeout(timeout: keyof typeof TIMEOUTS): number {
-    const multiplier = process.env.TIMEOUT_MULTIPLIER ? 
-        parseFloat(process.env.TIMEOUT_MULTIPLIER) : 1;
-    return TIMEOUTS[timeout] * multiplier;
+    return TIMEOUTS[timeout];
 }
 
 export function getAdjustedTimeout(
@@ -32,13 +32,15 @@ export function getAdjustedTimeout(
     platform?: string
 ): number {
     const baseTimeout = getTimeout(timeout);
+    let adjustedTimeout = baseTimeout;
     
     if (platform?.toLowerCase() === 'ios') {
-        return Math.round(baseTimeout * 1.2);
+        adjustedTimeout = Math.round(baseTimeout * 1.2);
     }
     
-    return baseTimeout;
+    return adjustedTimeout;
 }
+
 
 export async function smartWait(
     durationOrCondition: number | (() => Promise<boolean>),
@@ -69,31 +71,44 @@ export async function waitForElementStable(
         timeout?: number;
         checkInterval?: number;
         stabilityThreshold?: number;
+        checkSize?: boolean;
     } = {}
 ) {
     const {
-        timeout = TIMEOUTS.STANDARD,
+        timeout = getAdjustedTimeout('STANDARD'),
         checkInterval = TIMEOUTS.POLLING_INTERVAL,
-        stabilityThreshold = 3
+        stabilityThreshold = 3,
+        checkSize = true
     } = options;
     
     let stableCount = 0;
     let lastPosition = { x: -1, y: -1 };
+    let lastSize = { width: -1, height: -1 };
     const startTime = Date.now();
     
     while (Date.now() - startTime < timeout) {
         try {
-            const currentPosition = await element.getLocation();
+            const [currentPosition, currentSize] = await Promise.all([
+                element.getLocation(),
+                checkSize ? element.getSize() : Promise.resolve(lastSize)
+            ]);
             
-            if (currentPosition.x === lastPosition.x && 
-                currentPosition.y === lastPosition.y) {
+            const positionStable = currentPosition.x === lastPosition.x && 
+                                 currentPosition.y === lastPosition.y;
+            const sizeStable = !checkSize || 
+                             (currentSize.width === lastSize.width && 
+                              currentSize.height === lastSize.height);
+            
+            if (positionStable && sizeStable) {
                 stableCount++;
                 if (stableCount >= stabilityThreshold) {
-                    return; // Element is stable
+                    await smartWait(TIMEOUTS.ELEMENT_STABILITY_WAIT);
+                    return;
                 }
             } else {
                 stableCount = 0;
                 lastPosition = currentPosition;
+                if (checkSize) lastSize = currentSize;
             }
         } catch (error) {
             stableCount = 0;
@@ -126,9 +141,12 @@ export async function verifyElementDisplayed(
     timeout: number = TIMEOUTS.EXTENDED,
     errorMsg?: string
 ) {
+    const adjustedTimeout = getAdjustedTimeout('EXTENDED');
+    const pollInterval = TIMEOUTS.FAST_POLLING;
+    
     const isDisplayed = await element.waitForDisplayed({
-        timeout,
-        interval: 2000,
+        timeout: timeout || adjustedTimeout,
+        interval: pollInterval,
         timeoutMsg: errorMsg
     }).catch(() => false);
     
@@ -136,7 +154,7 @@ export async function verifyElementDisplayed(
         const selector = typeof element.selector === 'string' ? element.selector : 'unknown selector';
         const isExisting = await element.isExisting().catch(() => false);
         
-        let message = errorMsg || `Element not displayed after ${timeout}ms`;
+        let message = errorMsg || `Element not displayed after ${timeout || adjustedTimeout}ms`;
         if (!isExisting) {
             message += ` (element doesn't exist in DOM)`;
         } else {
@@ -145,7 +163,7 @@ export async function verifyElementDisplayed(
         message += ` - Selector: ${selector}`;
         
         const { ElementNotFoundError } = await import('./error.utils');
-        throw new ElementNotFoundError(selector, timeout);
+        throw new ElementNotFoundError(selector, timeout || adjustedTimeout);
     }
 }
 

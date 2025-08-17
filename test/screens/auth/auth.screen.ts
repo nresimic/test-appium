@@ -7,8 +7,10 @@ import {
     waitForPasscodeScreen,
     waitAfterInput,
     waitAfterFieldInteraction,
+    waitForElementStable,
     TIMEOUTS
 } from '../../utils/wait.utils';
+import { withElementRetry } from '../../utils/error.utils';
 
 class AuthScreen extends BaseScreen {
     get phoneInput() {
@@ -78,18 +80,25 @@ class AuthScreen extends BaseScreen {
     }
 
     async enterPhoneNumber(phoneNumber: string) {
-        const input = await this.phoneInput;
-        await input.click();
-        await input.clearValue();
-        
-        if (this.isIOS) {
-            for (const char of phoneNumber) {
-                await input.addValue(char);
-                await waitAfterInput('ios');
-            }
-        } else {
-            await input.setValue(phoneNumber);
-        }
+        await withElementRetry(
+            () => this.phoneInput,
+            async (input) => {
+                await waitForElementStable(input);
+                await input.click();
+                await waitAfterFieldInteraction();
+                await input.clearValue();
+                
+                if (this.isIOS) {
+                    for (const char of phoneNumber) {
+                        await input.addValue(char);
+                        await waitAfterInput('ios');
+                    }
+                } else {
+                    await input.setValue(phoneNumber);
+                }
+            },
+            { operationName: 'Enter phone number' }
+        );
     }
 
     async tapGetOtp() {
@@ -101,22 +110,36 @@ class AuthScreen extends BaseScreen {
     async enterOtp(otp: string) {
         await waitForLoadingComplete(this.platform);
         
-        const otpField = await this.otpInput;
-        await verifyElementDisplayed(this.resendOtpText);
-        await otpField.click();
-        await otpField.clearValue();
-        await otpField.setValue(otp);
+        await withElementRetry(
+            () => this.otpInput,
+            async (otpField) => {
+                await verifyElementDisplayed(this.resendOtpText);
+                await waitForElementStable(otpField);
+                await otpField.click();
+                await waitAfterFieldInteraction();
+                await otpField.clearValue();
+                
+                await otpField.setValue(otp);
+            },
+            { operationName: 'Enter OTP' }
+        );
     }
 
     async enterPasscode(passcode: string) {
-        const passcodeField = await this.passcodeInput;
-        await verifyElementDisplayed(passcodeField);
-        
-        await passcodeField.click();
-        await passcodeField.clearValue();
-        await passcodeField.setValue(passcode);
-        
-        // Passcode entered
+        await withElementRetry(
+            () => this.passcodeInput,
+            async (passcodeField) => {
+                await waitForElementStable(passcodeField);
+                await verifyElementDisplayed(passcodeField);
+                
+                await passcodeField.click();
+                await waitAfterFieldInteraction();
+                await passcodeField.clearValue();
+                
+                await passcodeField.setValue(passcode);
+            },
+            { operationName: 'Enter passcode' }
+        );
     }
 
     async tapContinue() {
@@ -126,27 +149,45 @@ class AuthScreen extends BaseScreen {
     }
 
     async enterProfileInfo(firstName: string, lastName: string, email: string) {
-        const firstNameField = await this.firstNameInput;
-        await verifyElementDisplayed(firstNameField);
-        await firstNameField.click();
-        await firstNameField.clearValue();
-        await firstNameField.setValue(firstName);
+        await withElementRetry(
+            () => this.firstNameInput,
+            async (firstNameField) => {
+                await waitForElementStable(firstNameField);
+                await verifyElementDisplayed(firstNameField);
+                await firstNameField.click();
+                await firstNameField.clearValue();
+                await firstNameField.setValue(firstName);
+            },
+            { operationName: 'Enter first name' }
+        );
         
         await dismissKeyboard();
         
-        const lastNameField = await this.lastNameInput;
-        await verifyElementDisplayed(lastNameField);
-        await lastNameField.click();
-        await lastNameField.clearValue();
-        await lastNameField.setValue(lastName);
+        await withElementRetry(
+            () => this.lastNameInput,
+            async (lastNameField) => {
+                await waitForElementStable(lastNameField);
+                await verifyElementDisplayed(lastNameField);
+                await lastNameField.click();
+                await lastNameField.clearValue();
+                await lastNameField.setValue(lastName);
+            },
+            { operationName: 'Enter last name' }
+        );
         
         await dismissKeyboard();
         
-        const emailField = await this.emailInput;
-        await verifyElementDisplayed(emailField);
-        await emailField.click();
-        await emailField.clearValue();
-        await emailField.setValue(email);
+        await withElementRetry(
+            () => this.emailInput,
+            async (emailField) => {
+                await waitForElementStable(emailField);
+                await verifyElementDisplayed(emailField);
+                await emailField.click();
+                await emailField.clearValue();
+                await emailField.setValue(email);
+            },
+            { operationName: 'Enter email' }
+        );
         
         await dismissKeyboard();
     }

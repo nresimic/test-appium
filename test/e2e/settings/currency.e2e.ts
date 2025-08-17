@@ -6,7 +6,13 @@ import {
     SettingsScreen, 
     CurrencyScreen 
 } from '../../screens';
-import { TestUsers, getAllCurrencyCodes } from '../../data';
+import { 
+    TestUsers, 
+    getAllCurrencyCodes,
+    findTwoUnselectedCurrencies,
+    validateAllCurrenciesExist,
+    getFallbackCurrency
+} from '../../data';
 import { 
     navigateToHomeScreen, 
     attachScreenshot,
@@ -18,10 +24,9 @@ import {
 } from '../../utils';
 
 describe('Currency Settings', () => {
-    const TEST_CURRENCY = 'EUR';
-    const ALTERNATIVE_CURRENCY = 'SAR';
-    const DEFAULT_CURRENCY = 'AED';
     const TEST_USER = TestUsers.validUserWithoutBankAcc;
+    let CURRENCY_TO_CANCEL: string;
+    let CURRENCY_TO_PERSIST: string;
     
     beforeEach(async () => {
         await SmartTestIsolation.prepareForTest(
@@ -39,24 +44,9 @@ describe('Currency Settings', () => {
         });
         
         await step('Verify all 15 supported currencies are available', async () => {
-            const allCurrencyCodes = getAllCurrencyCodes();
-            const missingCurrencies: string[] = [];
+            const missingCurrencies = await validateAllCurrenciesExist(CurrencyScreen);
             
-            for (const currencyCode of allCurrencyCodes) {
-                await CurrencyScreen.searchCurrency(currencyCode);
-                
-                const element = await CurrencyScreen.getCurrencyElement(currencyCode);
-                const exists = await element.isExisting();
-                
-                if (!exists) {
-                    missingCurrencies.push(currencyCode);
-                }
-                
-                const searchInput = await CurrencyScreen.searchInput;
-                await searchInput.clearValue();
-                await smartWait(TIMEOUTS.STABILITY_CHECK);
-            }
-            
+            // Verify all currencies are present
             expect(missingCurrencies.length).toBe(0);
             
             await attachScreenshot('All 15 supported currencies verified');
@@ -69,24 +59,31 @@ describe('Currency Settings', () => {
     });
 
     it('Should cancel currency change correctly', async () => {
-        await step('Navigate to currency settings', async () => {
+        await step('Navigate to currency settings and find unselected currency', async () => {
             await BottomNavigationScreen.tapMenuButton();
             await MenuScreen.tapSettingsButton();
             await SettingsScreen.openCurrency();
             await CurrencyScreen.verifyCurrencyScreen();
+            
+            // Dynamically find unselected currencies
+            const unselectedCurrencies = await findTwoUnselectedCurrencies(CurrencyScreen);
+            expect(unselectedCurrencies.length).toBeGreaterThanOrEqual(1);
+            
+            CURRENCY_TO_CANCEL = unselectedCurrencies[0];
+            console.log(`🎯 Using currency for cancel test: ${CURRENCY_TO_CANCEL}`);
         });
         
-        await step('Search for alternative currency and verify it is not selected', async () => {
-            await CurrencyScreen.searchCurrency(ALTERNATIVE_CURRENCY);
+        await step('Verify selected currency is not selected', async () => {
+            await CurrencyScreen.searchCurrency(CURRENCY_TO_CANCEL);
             
-            const isSelectedBefore = await CurrencyScreen.isCurrencySelected(ALTERNATIVE_CURRENCY);
+            const isSelectedBefore = await CurrencyScreen.isCurrencySelected(CURRENCY_TO_CANCEL);
             expect(isSelectedBefore).toBe(false);
         });
         
-        await step('Select alternative currency and cancel', async () => {
-            await CurrencyScreen.selectCurrency(ALTERNATIVE_CURRENCY);
+        await step('Select currency and cancel change', async () => {
+            await CurrencyScreen.selectCurrency(CURRENCY_TO_CANCEL);
             
-            await attachScreenshot(`${ALTERNATIVE_CURRENCY} clicked - modal should appear`);
+            await attachScreenshot(`${CURRENCY_TO_CANCEL} clicked - modal should appear`);
             
             await CurrencyScreen.cancelCurrencyChange();
             
@@ -94,9 +91,9 @@ describe('Currency Settings', () => {
         });
         
         await step('Verify currency was not changed', async () => {
-            await CurrencyScreen.searchCurrency(ALTERNATIVE_CURRENCY);
+            await CurrencyScreen.searchCurrency(CURRENCY_TO_CANCEL);
             
-            const isSelectedAfter = await CurrencyScreen.isCurrencySelected(ALTERNATIVE_CURRENCY);
+            const isSelectedAfter = await CurrencyScreen.isCurrencySelected(CURRENCY_TO_CANCEL);
             expect(isSelectedAfter).toBe(false);
             
             await attachScreenshot('Currency unchanged after cancel');
@@ -111,17 +108,33 @@ describe('Currency Settings', () => {
             await CurrencyScreen.verifyCurrencyScreen();
         });
         
-        await step('Search for USD and verify it is not selected', async () => {
-            await CurrencyScreen.searchCurrency(TEST_CURRENCY);
+        await step('Find unselected currency for persistence test', async () => {
+            // Dynamically find unselected currencies
+            const unselectedCurrencies = await findTwoUnselectedCurrencies(CurrencyScreen);
+            expect(unselectedCurrencies.length).toBeGreaterThanOrEqual(1);
             
-            const isSelectedBefore = await CurrencyScreen.isCurrencySelected(TEST_CURRENCY);
+            // Use second currency if available, otherwise fallback
+            CURRENCY_TO_PERSIST = unselectedCurrencies.length > 1 
+                ? unselectedCurrencies[1] 
+                : (unselectedCurrencies[0] !== CURRENCY_TO_CANCEL 
+                    ? unselectedCurrencies[0] 
+                    : getFallbackCurrency([CURRENCY_TO_CANCEL]));
+            
+            console.log(`🎯 Using currency for persist test: ${CURRENCY_TO_PERSIST}`);
+            
+            await CurrencyScreen.searchCurrency(CURRENCY_TO_PERSIST);
+            
+            const isSelectedBefore = await CurrencyScreen.isCurrencySelected(CURRENCY_TO_PERSIST);
             expect(isSelectedBefore).toBe(false);
+            
+            // Store target currency for use in subsequent steps
+            (global as any).targetCurrency = CURRENCY_TO_PERSIST;
         });
         
-        await step('Select USD currency', async () => {
-            await CurrencyScreen.selectCurrency(TEST_CURRENCY);
+        await step('Select target currency', async () => {
+            await CurrencyScreen.selectCurrency(CURRENCY_TO_PERSIST);
             
-            await attachScreenshot(`${TEST_CURRENCY} clicked - modal should appear`);
+            await attachScreenshot(`${CURRENCY_TO_PERSIST} clicked - modal should appear`);
         });
         
         await step('Confirm currency change', async () => {
@@ -132,9 +145,9 @@ describe('Currency Settings', () => {
         });
         
         await step('Verify currency was changed in settings', async () => {
-            await CurrencyScreen.searchCurrency(TEST_CURRENCY);
+            await CurrencyScreen.searchCurrency(CURRENCY_TO_PERSIST);
             
-            const isSelectedAfterChange = await CurrencyScreen.isCurrencySelected(TEST_CURRENCY);
+            const isSelectedAfterChange = await CurrencyScreen.isCurrencySelected(CURRENCY_TO_PERSIST);
             expect(isSelectedAfterChange).toBe(true);
         });
         
@@ -157,39 +170,18 @@ describe('Currency Settings', () => {
             }, { timeout: TIMEOUTS.LOGIN, message: 'Menu button not visible after login' });
         });
         
-        await step('Navigate to currency settings and verify', async () => {
+        await step('Navigate to currency settings and verify persistence', async () => {
             await BottomNavigationScreen.tapMenuButton();
             await MenuScreen.tapSettingsButton();
             await SettingsScreen.openCurrency();
 
-            await CurrencyScreen.searchCurrency(TEST_CURRENCY);
+            await CurrencyScreen.searchCurrency(CURRENCY_TO_PERSIST);
             
-            const isSelected = await CurrencyScreen.isCurrencySelected(TEST_CURRENCY);
+            const isSelected = await CurrencyScreen.isCurrencySelected(CURRENCY_TO_PERSIST);
             expect(isSelected).toBe(true);
             
-            await attachScreenshot(`${TEST_CURRENCY} persisted after logout/login`);
+            console.log(`✅ Currency successfully persisted: ${CURRENCY_TO_PERSIST}`);
+            await attachScreenshot(`${CURRENCY_TO_PERSIST} persisted after logout/login`);
         });
-    });
-
-    after(async () => {
-        // Always reset back to AED for consistency
-        // First ensure we're logged in and at a known state
-        await SmartTestIsolation.prepareForTest(
-            TestIsolationLevel.PRESERVE_LOGIN,
-            TEST_USER
-        );
-        
-        // Navigate to currency settings
-        await BottomNavigationScreen.tapMenuButton();
-        await MenuScreen.tapSettingsButton();
-        await SettingsScreen.openCurrency();
-        
-        await CurrencyScreen.searchCurrency(DEFAULT_CURRENCY);
-        const isAedSelected = await CurrencyScreen.isCurrencySelected(DEFAULT_CURRENCY);
-        
-        if (!isAedSelected) {
-            await CurrencyScreen.selectCurrency(DEFAULT_CURRENCY);
-            await CurrencyScreen.confirmCurrencyChange();
-        }
     });
 });

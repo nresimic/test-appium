@@ -129,3 +129,113 @@ export function getCurrencySymbol(code: string): string {
     const currency = getCurrencyByCode(code);
     return currency ? currency.symbol : code;
 }
+
+/**
+ * Find an unselected currency for testing
+ * Searches through available currencies and returns first unselected one
+ */
+export async function findUnselectedCurrency(currencyScreen: any, excludeCurrencies: string[] = []): Promise<string | null> {
+    const allCurrencies = getAllCurrencyCodes();
+    const availableCurrencies = allCurrencies.filter(code => !excludeCurrencies.includes(code));
+    
+    for (const currencyCode of availableCurrencies) {
+        try {
+            await currencyScreen.searchCurrency(currencyCode);
+            
+            const element = await currencyScreen.getCurrencyElement(currencyCode);
+            const exists = await element.isExisting();
+            
+            if (exists) {
+                const isSelected = await currencyScreen.isCurrencySelected(currencyCode);
+                if (!isSelected) {
+                    console.log(`🎯 Found unselected currency: ${currencyCode}`);
+                    return currencyCode;
+                }
+            }
+            
+            const searchInput = await currencyScreen.searchInput;
+            await searchInput.clearValue();
+            await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+            console.log(`⚠️ Error checking currency ${currencyCode}`);
+            continue;
+        }
+    }
+    
+    console.log(`❌ No unselected currency found. Excluded: ${excludeCurrencies.join(', ')}`);
+    return null;
+}
+
+/**
+ * Find two different unselected currencies for testing
+ * Returns array with [cancelCurrency, persistCurrency] or empty array if not enough found
+ */
+export async function findTwoUnselectedCurrencies(currencyScreen: any): Promise<string[]> {
+    const firstCurrency = await findUnselectedCurrency(currencyScreen);
+    if (!firstCurrency) {
+        return [];
+    }
+    
+    const secondCurrency = await findUnselectedCurrency(currencyScreen, [firstCurrency]);
+    if (!secondCurrency) {
+        return [firstCurrency];
+    }
+    
+    console.log(`✅ Found two unselected currencies: ${firstCurrency}, ${secondCurrency}`);
+    return [firstCurrency, secondCurrency];
+}
+
+/**
+ * Validate all currencies exist in the app
+ * Returns array of missing currencies
+ */
+export async function validateAllCurrenciesExist(currencyScreen: any): Promise<string[]> {
+    const allCurrencies = getAllCurrencyCodes();
+    const missingCurrencies: string[] = [];
+    
+    console.log(`🔍 Validating ${allCurrencies.length} currencies exist in app...`);
+    
+    for (const currencyCode of allCurrencies) {
+        try {
+            await currencyScreen.searchCurrency(currencyCode);
+            
+            const element = await currencyScreen.getCurrencyElement(currencyCode);
+            const exists = await element.isExisting();
+            
+            if (!exists) {
+                missingCurrencies.push(currencyCode);
+                console.log(`❌ Currency not found: ${currencyCode}`);
+            } else {
+                console.log(`✅ Currency found: ${currencyCode}`);
+            }
+            
+            const searchInput = await currencyScreen.searchInput;
+            await searchInput.clearValue();
+            await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+            console.log(`⚠️ Error validating currency ${currencyCode}`);
+            missingCurrencies.push(currencyCode);
+        }
+    }
+    
+    if (missingCurrencies.length === 0) {
+        console.log(`✅ All ${allCurrencies.length} currencies validated successfully`);
+    } else {
+        console.log(`❌ Missing currencies: ${missingCurrencies.join(', ')}`);
+    }
+    
+    return missingCurrencies;
+}
+
+/**
+ * Get a safe fallback currency that should always be available
+ * Returns AED (default) if not excluded, otherwise first available
+ */
+export function getFallbackCurrency(excludeCurrencies: string[] = []): string {
+    if (!excludeCurrencies.includes(DEFAULT_CURRENCY)) {
+        return DEFAULT_CURRENCY;
+    }
+    
+    const available = getAllCurrencyCodes().filter(code => !excludeCurrencies.includes(code));
+    return available[0] || 'USD';
+}
