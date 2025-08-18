@@ -26,6 +26,14 @@ reports/
 dist/
 build/
 
+# Test packages and bundles (generated files)
+test-bundle.zip
+device-farm-test-package.zip
+device-farm-testspec-dynamic.yml
+
+# Runtime state files
+running-tests.json
+
 # Downloaded apps (keep .gitkeep for folder structure)
 apps/android/*.apk
 apps/android/*.aab

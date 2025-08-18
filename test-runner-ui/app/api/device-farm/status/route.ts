@@ -49,6 +49,16 @@ async function saveHistory(history: any[]) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const runArn = searchParams.get('runArn');
+  const buildId = searchParams.get('buildId');
+  
+  // Handle local development requests with buildId
+  if (buildId && buildId.startsWith('local-')) {
+    return NextResponse.json({
+      buildStatus: 'IN_PROGRESS',
+      message: 'Local Device Farm job is running. Check Device Farm console for actual status.',
+      jobId: buildId
+    });
+  }
   
   if (!runArn) {
     return NextResponse.json({ 

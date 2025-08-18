@@ -74,7 +74,9 @@ phases:
   # Test execution phase
   test:
     commands:
-      - export TEST_MODE="full"
+      - export TEST_MODE="single"
+      - export SELECTED_TEST="test/e2e/auth/login.e2e.ts"
+      - export SELECTED_TEST_CASE="Should show error for invalid OTP"
       - echo "=== Injected Test Parameters ==="
       - echo TEST_MODE=$TEST_MODE
       - echo SELECTED_TEST=$SELECTED_TEST
@@ -132,7 +134,9 @@ phases:
               
               if [ -n "$SELECTED_TEST_CASE" ]; then
                 echo "🎯 Running specific test case: $SELECTED_TEST_CASE"
-                WDIO_CMD="$WDIO_CMD --grep \"$SELECTED_TEST_CASE\""
+                # Export as environment variable for WebDriverIO config to pick up
+                export WDIO_GREP_PATTERN="$SELECTED_TEST_CASE"
+                echo "🔧 Set WDIO_GREP_PATTERN: $WDIO_GREP_PATTERN"
               fi
             else
               echo "🏃 Running full test suite"

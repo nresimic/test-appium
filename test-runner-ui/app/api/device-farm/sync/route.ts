@@ -66,8 +66,13 @@ export async function GET() {
     let syncedCount = 0;
     let addedCount = 0;
     
-    // Process each Device Farm run
-    for (const run of runs) {
+    // Filter to only completed runs
+    const completedRuns = runs.filter(run => run.status === 'COMPLETED');
+    
+    console.log(`Found ${runs.length} total runs, ${completedRuns.length} completed runs`);
+    
+    // Process each completed Device Farm run
+    for (const run of completedRuns) {
       const runId = run.arn?.split('/').pop() || `df-${Date.now()}`;
       const existingIndex = history.findIndex((h: any) => 
         h.runArn === run.arn || h.id === runId
@@ -133,10 +138,11 @@ export async function GET() {
     await fs.writeFile(historyPath, JSON.stringify(history, null, 2));
     
     return NextResponse.json({ 
-      message: `Synced ${syncedCount} and added ${addedCount} Device Farm tests`,
+      message: `Synced ${syncedCount} and added ${addedCount} completed Device Farm tests`,
       synced: syncedCount,
       added: addedCount,
-      total: runs.length
+      total: completedRuns.length,
+      totalRuns: runs.length
     });
     
   } catch (error: any) {

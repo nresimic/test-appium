@@ -30,13 +30,6 @@ interface TestRun {
   device: string;
   platform: 'ios' | 'android';
   build: string;
-  counters?: {
-    passed: number;
-    failed: number;
-    broken?: number;
-    skipped: number;
-    total: number;
-  };
   artifactsUrl?: string;
   runArn?: string;
   isDeviceFarm?: boolean;
@@ -76,7 +69,7 @@ export default function TestHistory() {
 
   const fetchHistoryOnly = async () => {
     try {
-      const response = await fetch('/api/test/history');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/test/history`);
       if (response.ok) {
         const data = await response.json();
         // Filter to only show completed tests in history
@@ -94,7 +87,7 @@ export default function TestHistory() {
 
   const syncDeviceFarmData = async () => {
     try {
-      const response = await fetch('/api/device-farm/sync');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/device-farm/sync`);
       if (response.ok) {
         const data = await response.json();
         console.log('Device Farm sync:', data.message);
@@ -291,30 +284,6 @@ export default function TestHistory() {
                       </span>
                     </div>
                     
-                    {run.counters && run.isDeviceFarm && (
-                      <div className="flex items-center gap-4 mt-2 text-sm">
-                        {run.counters.passed > 0 && (
-                          <span className="text-green-600">
-                            ✓ {run.counters.passed} passed
-                          </span>
-                        )}
-                        {run.counters.failed > 0 && (
-                          <span className="text-red-600">
-                            ✗ {run.counters.failed} failed
-                          </span>
-                        )}
-                        {run.counters.broken && run.counters.broken > 0 && (
-                          <span className="text-yellow-600">
-                            ⚠ {run.counters.broken} broken
-                          </span>
-                        )}
-                        {run.counters.skipped > 0 && (
-                          <span className="text-gray-500">
-                            ⊘ {run.counters.skipped} skipped
-                          </span>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
                 
@@ -329,7 +298,7 @@ export default function TestHistory() {
                             showToast('info', 'Fetching Report', 'Checking AWS Device Farm for test report...');
                             
                             try {
-                              const response = await fetch(`/api/device-farm/report?runArn=${encodeURIComponent(run.runArn!)}`);
+                              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/device-farm/report?runArn=${encodeURIComponent(run.runArn!)}`);
                               const data = await response.json();
                               
                               if (data.hasReport && data.reportUrl) {

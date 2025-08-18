@@ -10,6 +10,7 @@ import {
   TestType,
   DevicePoolType
 } from '@aws-sdk/client-device-farm';
+import { CodeBuildClient, StartBuildCommand } from '@aws-sdk/client-codebuild';
 import { promises as fs } from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
@@ -244,31 +245,28 @@ async function uploadToDeviceFarm(client: DeviceFarmClient, projectArn: string, 
   }
 }
 
-export async function POST(request: Request) {
+// Background processing function for local Device Farm calls
+async function processDeviceFarmDirectly(jobId: string, params: any) {
+  const { 
+    projectArn,
+    devicePoolArn,
+    platform,
+    buildPath,
+    testSpecPath,
+    testType,
+    testMode,
+    test,
+    testCase
+  } = params;
+
   try {
-    const { 
-      projectArn,
-      devicePoolArn,
-      platform,
-      buildPath,
-      testSpecPath,
-      testType = 'APPIUM_NODE',
-      testMode,
-      test,
-      testCase
-    } = await request.json();
-    
-    if (!projectArn || !devicePoolArn || !buildPath) {
-      return NextResponse.json({ 
-        error: 'Missing required parameters' 
-      }, { status: 400 });
-    }
+    console.log(`[${jobId}] Starting Device Farm processing...`);
     
     const client = getDeviceFarmClient();
     const projectRoot = path.join(process.cwd(), '..');
     
     // Upload app
-    console.log('Uploading app to Device Farm...');
+    console.log(`[${jobId}] Uploading app to Device Farm...`);
     const appPath = path.join(projectRoot, buildPath);
     const appArn = await uploadToDeviceFarm(
       client, 
@@ -278,11 +276,11 @@ export async function POST(request: Request) {
     );
     
     // Upload test package (your test bundle)
-    console.log('Uploading test package...');
+    console.log(`[${jobId}] Uploading test package...`);
     const testPackagePath = path.join(projectRoot, 'test-bundle.zip');
     
     // Always recreate test bundle to ensure latest code
-    console.log('Creating fresh test bundle with latest code...');
+    console.log(`[${jobId}] Creating fresh test bundle with latest code...`);
     const { exec } = require('child_process');
     const { promisify } = require('util');
     const execAsync = promisify(exec);
@@ -302,10 +300,10 @@ export async function POST(request: Request) {
     });
     
     // Verify the bundle includes Device Farm config
-    console.log('Verifying test bundle contents...');
+    console.log(`[${jobId}] Verifying test bundle contents...`);
     await execAsync('unzip -l test-bundle.zip | grep devicefarm', {
       cwd: projectRoot
-    }).catch(() => console.log('Device Farm config not found in bundle'));
+    }).catch(() => console.log(`[${jobId}] Device Farm config not found in bundle`));
     
     // Force fresh upload of test package (no caching)
     const testPackageArn = await uploadToDeviceFarmNoCache(
@@ -318,7 +316,7 @@ export async function POST(request: Request) {
     // Create dynamic test spec with test parameters
     let testSpecArn;
     if (testSpecPath) {
-      console.log('Creating dynamic test spec with parameters...');
+      console.log(`[${jobId}] Creating dynamic test spec with parameters...`);
       const specPath = path.join(projectRoot, testSpecPath);
       
       // Read the base test spec
@@ -359,7 +357,7 @@ export async function POST(request: Request) {
       // Save the dynamic test spec
       const dynamicSpecPath = path.join(projectRoot, 'device-farm-testspec-dynamic.yml');
       await fs.writeFile(dynamicSpecPath, dynamicTestSpec);
-      console.log('Dynamic test spec created with parameters');
+      console.log(`[${jobId}] Dynamic test spec created with parameters`);
       
       // Upload the dynamic test spec (force fresh upload)
       testSpecArn = await uploadToDeviceFarmNoCache(
@@ -371,13 +369,13 @@ export async function POST(request: Request) {
     }
     
     // Schedule the run
-    console.log('Scheduling test run...');
+    console.log(`[${jobId}] Scheduling test run...`);
     
     // Log what mode we're running in
     if (testMode === 'single' && test) {
-      console.log(`Running single test: ${test}${testCase ? ` - ${testCase}` : ''}`);
+      console.log(`[${jobId}] Running single test: ${test}${testCase ? ` - ${testCase}` : ''}`);
     } else {
-      console.log('Running full test suite');
+      console.log(`[${jobId}] Running full test suite`);
     }
     
     const scheduleRunCommand = new ScheduleRunCommand({
@@ -389,8 +387,6 @@ export async function POST(request: Request) {
         type: testType as TestType,
         testPackageArn,
         testSpecArn
-        // Note: parameters field doesn't work for environment variables in Device Farm
-        // We inject them directly into the test spec YAML instead
       }
     });
     
@@ -400,6 +396,8 @@ export async function POST(request: Request) {
       throw new Error('Failed to schedule run');
     }
     
+    console.log(`[${jobId}] Device Farm run scheduled successfully: ${run.arn}`);
+    
     // Save to test history
     try {
       const testName = testMode === 'single' && test ? 
@@ -407,7 +405,7 @@ export async function POST(request: Request) {
         'Full Test Suite';
       
       const historyEntry = {
-        id: run.arn?.split('/').pop() || `df-${Date.now()}`,
+        id: run.arn?.split('/').pop() || jobId,
         name: testName,
         status: 'RUNNING',
         created: new Date().toISOString(),
@@ -421,21 +419,90 @@ export async function POST(request: Request) {
         testCase: testCase || null
       };
       
-      await fetch(`${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/api/test/history`, {
+      await fetch(`http://localhost:3002/api/test/history`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(historyEntry)
       });
     } catch (error) {
-      console.error('Failed to save to history:', error);
-      // Don't fail the request if history save fails
+      console.error(`[${jobId}] Failed to save to history:`, error);
     }
     
-    return NextResponse.json({ 
-      runArn: run.arn,
-      status: run.status,
-      name: run.name,
-      message: 'Test run scheduled successfully'
+  } catch (error) {
+    console.error(`[${jobId}] Device Farm processing failed:`, error);
+    throw error;
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { 
+      projectArn,
+      devicePoolArn,
+      platform,
+      buildPath,
+      testSpecPath,
+      testType = 'APPIUM_NODE',
+      testMode,
+      testSuite: test, // Rename for compatibility with original code
+      testCase
+    } = body;
+    
+    if (!projectArn || !devicePoolArn || !buildPath) {
+      return NextResponse.json({ 
+        error: 'Missing required parameters' 
+      }, { status: 400 });
+    }
+
+    // Check if this is running on AWS deployment (has API URL)
+    const isAWSDeployment = Boolean(process.env.NEXT_PUBLIC_API_URL);
+    
+    if (isAWSDeployment) {
+      // AWS deployment - proxy to Lambda which is already async
+      console.log('AWS deployment detected - proxying to Lambda...');
+      try {
+        const lambdaResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/device-farm/run`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        
+        const lambdaData = await lambdaResponse.json();
+        return NextResponse.json(lambdaData, { status: lambdaResponse.status });
+      } catch (proxyError) {
+        console.error('Failed to proxy to Lambda:', proxyError);
+        return NextResponse.json({ 
+          error: 'Failed to connect to AWS Lambda' 
+        }, { status: 502 });
+      }
+    }
+
+    // Local development - return immediately and process in background
+    const jobId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`Local development - starting Device Farm job ${jobId} in background`);
+    
+    // Start background processing (don't await)
+    processDeviceFarmDirectly(jobId, {
+      projectArn,
+      devicePoolArn,
+      platform,
+      buildPath,
+      testSpecPath,
+      testType,
+      testMode,
+      test,
+      testCase
+    }).catch(error => {
+      console.error(`Background Device Farm processing failed for job ${jobId}:`, error);
+    });
+    
+    // Return immediately
+    return NextResponse.json({
+      runArn: `local:${jobId}`,
+      status: 'SCHEDULING',
+      message: 'Device Farm test is being scheduled in background...',
+      jobId
     });
     
   } catch (error: any) {

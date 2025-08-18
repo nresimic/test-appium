@@ -51,9 +51,9 @@ export default function RunningTests() {
     try {
       // Fetch local tests, Device Farm running tests, and history
       const [localResponse, deviceFarmResponse, historyResponse] = await Promise.all([
-        fetch('/api/test/run'), // Gets all running local tests
-        fetch('/api/device-farm/running'), // Gets current running Device Farm tests
-        fetch('/api/test/history') // Gets history including running Device Farm tests
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/test/run`), // Gets all running local tests
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/device-farm/running`), // Gets current running Device Farm tests
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/test/history`) // Gets history including running Device Farm tests
       ]);
 
       // Check if responses are OK and content type is JSON

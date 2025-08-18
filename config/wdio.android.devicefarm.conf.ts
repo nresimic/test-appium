@@ -20,6 +20,13 @@ export const config = {
     specs: [
         '../test/e2e/**/*.e2e.ts'
     ],
+    // Use environment variable for test filtering
+    ...(process.env.WDIO_GREP_PATTERN && {
+        mochaOpts: {
+            ...sharedConfig.mochaOpts,
+            grep: process.env.WDIO_GREP_PATTERN
+        }
+    }),
     reporters: [
         'spec',
         ['allure', {

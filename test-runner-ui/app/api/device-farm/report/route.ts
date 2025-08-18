@@ -29,7 +29,7 @@ const getDeviceFarmClient = () => {
 
 const getS3Client = () => {
   return new S3Client({
-    region: process.env.AWS_REGION || 'us-west-2',
+    region: 'eu-west-1', // Reports bucket is in eu-west-1
     credentials: process.env.AWS_ACCESS_KEY_ID ? {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
@@ -45,7 +45,7 @@ const checkIfReportExistsInS3 = async (runArn: string): Promise<string | null> =
     
     // Try to find existing report with the same runId
     // We need to generate possible S3 keys and check if they exist
-    const bucketName = 'vault-test-reports-new';
+    const bucketName = 'vault22-test-reports';
     const keyPrefix = `allure/device-farm-`;
     const keySuffix = `-${runId}.html`;
     
@@ -61,7 +61,7 @@ const checkIfReportExistsInS3 = async (runArn: string): Promise<string | null> =
     await s3Client.send(headCommand);
     
     // If no error, the object exists
-    return `https://${bucketName}.s3.us-west-2.amazonaws.com/${consistentKey}`;
+    return `https://${bucketName}.s3.eu-west-1.amazonaws.com/${consistentKey}`;
   } catch (error: any) {
     if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
       return null; // Object doesn't exist

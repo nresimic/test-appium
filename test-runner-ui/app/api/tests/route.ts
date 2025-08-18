@@ -48,8 +48,7 @@ async function findTestFiles(dir: string): Promise<TestFile[]> {
           if (tests.length > 0) {
             testFiles.push({
               path: relativePath,
-              name: entry.name.replace('.e2e.ts', '').replace(/-/g, ' ').replace(/_/g, ' ')
-                .split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+              name: entry.name, // Keep original filename without transformation
               tests
             });
           }

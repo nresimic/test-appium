@@ -29,7 +29,7 @@ const getDeviceFarmClient = () => {
 
 const getS3Client = () => {
   return new S3Client({
-    region: process.env.AWS_REGION || 'us-west-2',
+    region: 'eu-west-1', // Reports bucket is in eu-west-1
     credentials: process.env.AWS_ACCESS_KEY_ID ? {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     
     // Upload to S3
     const putCommand = new PutObjectCommand({
-      Bucket: 'vault-test-reports-new',
+      Bucket: 'vault22-test-reports',
       Key: s3Key,
       Body: htmlContent,
       ContentType: 'text/html',
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
     
     await s3Client.send(putCommand);
     
-    const s3Url = `https://vault-test-reports-new.s3.us-west-2.amazonaws.com/${s3Key}`;
+    const s3Url = `https://vault22-test-reports.s3.eu-west-1.amazonaws.com/${s3Key}`;
     
     console.log('✅ Report uploaded successfully:', s3Url);
     

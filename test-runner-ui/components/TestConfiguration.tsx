@@ -45,12 +45,17 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
   const [selectedTestCase, setSelectedTestCase] = useState<string>('');
   const [runLocation, setRunLocation] = useState<'local' | 'device-farm'>('local');
   
+  // Check if running on AWS (CloudFront) by checking if API URL is set
+  const isAWSDeployment = Boolean(process.env.NEXT_PUBLIC_API_URL);
+  
   const [builds, setBuilds] = useState<Build[]>([]);
   const [testFiles, setTestFiles] = useState<TestFile[]>([]);
+  const [deviceFarmTestSuites, setDeviceFarmTestSuites] = useState<{ [key: string]: string[] }>({});
   const [deviceFarmDevices, setDeviceFarmDevices] = useState<DeviceFarmDevice[]>([]);
   const [loadingBuilds, setLoadingBuilds] = useState(false);
   const [loadingTests, setLoadingTests] = useState(false);
   const [loadingDevices, setLoadingDevices] = useState(false);
+  const [loadingTestSuites, setLoadingTestSuites] = useState(false);
   const [fetchingBuilds, setFetchingBuilds] = useState(false);
   const [submittingDeviceFarm, setSubmittingDeviceFarm] = useState(false);
   
@@ -60,7 +65,17 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
 
   useEffect(() => {
     fetchTestFiles();
-  }, []);
+    // Auto-select Device Farm when deployed on AWS
+    if (isAWSDeployment) {
+      setRunLocation('device-farm');
+    }
+  }, [isAWSDeployment]);
+
+  useEffect(() => {
+    if (runLocation === 'device-farm') {
+      fetchDeviceFarmTestSuites();
+    }
+  }, [runLocation]);
 
   useEffect(() => {
     fetchBuilds();
@@ -84,7 +99,7 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
   const fetchTestFiles = async () => {
     setLoadingTests(true);
     try {
-      const response = await fetch('/api/tests');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/tests`);
       const data = await response.json();
       setTestFiles(data.testFiles || []);
     } catch (error) {
@@ -97,7 +112,7 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
   const fetchBuilds = async () => {
     setLoadingBuilds(true);
     try {
-      const response = await fetch('/api/builds');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/builds`);
       const data = await response.json();
       const filteredBuilds = data.builds?.filter((b: Build) => b.platform === platform) || [];
       setBuilds(filteredBuilds);
@@ -112,7 +127,7 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
   const fetchLatestBuilds = async () => {
     setFetchingBuilds(true);
     try {
-      const response = await fetch('/api/builds/fetch', { method: 'POST' });
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/builds/fetch`, { method: 'POST' });
       if (response.ok) {
         await fetchBuilds();
       }
@@ -123,10 +138,49 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
     }
   };
 
+  const fetchDeviceFarmTestSuites = async () => {
+    setLoadingTestSuites(true);
+    try {
+      let response, data;
+      
+      if (process.env.NEXT_PUBLIC_API_URL) {
+        // AWS deployment - read from S3 ZIP package
+        response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/device-farm/test-suites`);
+        data = await response.json();
+        console.log('Device Farm test suites (from S3):', data.testSuites);
+        setDeviceFarmTestSuites(data.testSuites || {});
+      } else {
+        // Local development - read from local file system
+        response = await fetch('/api/tests');
+        data = await response.json();
+        console.log('Local test files:', data.testFiles);
+        
+        // Convert testFiles format to testSuites format
+        const testSuites: { [key: string]: string[] } = {};
+        data.testFiles?.forEach((file: any) => {
+          testSuites[file.path] = file.tests;  // Use full path instead of just filename
+        });
+        setDeviceFarmTestSuites(testSuites);
+      }
+    } catch (error) {
+      console.error('Failed to fetch test suites:', error);
+      // Use fallback if fetch fails
+      setDeviceFarmTestSuites({
+        'Login Flow': [
+          'Should login successfully with user having bank account @ios @android @auth @smoke',
+          'Should login successfully with user without bank account',
+          'Should show error for invalid OTP'
+        ]
+      });
+    } finally {
+      setLoadingTestSuites(false);
+    }
+  };
+
   const fetchDeviceFarmDevices = async () => {
     setLoadingDevices(true);
     try {
-      const response = await fetch(`/api/device-farm/devices?platform=${platform}`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/device-farm/devices?platform=${platform}`);
       const data = await response.json();
       console.log('Device Farm API response:', data);
       console.log('Number of devices received:', data.devices?.length || 0);
@@ -170,7 +224,7 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
         
         if (useMock) {
           // Mock Device Farm test
-          const response = await fetch('/api/device-farm/mock', {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/device-farm/mock`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(config)
@@ -183,7 +237,7 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
             
             // Poll for mock status
             const pollStatus = async () => {
-              const statusResponse = await fetch(`/api/device-farm/mock?runId=${data.runId}`);
+              const statusResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/device-farm/mock?runId=${data.runId}`);
               const statusData = await statusResponse.json();
               console.log(`[Device Farm Mock] Progress: ${statusData.progress}%`, statusData);
               
@@ -215,7 +269,7 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
           if (runLocation === 'device-farm') {
             try {
               console.log('Creating device pool for selected device...');
-              const devicePoolResponse = await fetch('/api/device-farm/devices', {
+              const devicePoolResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/device-farm/devices`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -251,12 +305,12 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
             buildPath: selectedBuildInfo.path,
             testSpecPath: 'device-farm-testspec.yml',
             testMode,
-            test: testMode === 'single' ? selectedTest : undefined,
+            testSuite: testMode === 'single' ? selectedTest : undefined,
             testCase: testMode === 'single' ? selectedTestCase : undefined
           };
           
-          // Call the Device Farm API
-          const response = await fetch('/api/device-farm/run', {
+          // Call the Device Farm Lambda API (asynchronous)
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/device-farm/run`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(deviceFarmConfig)
@@ -264,11 +318,16 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
           
           if (response.ok) {
             const data = await response.json();
-            showToast('success', 'Device Farm Test Scheduled!', 
-              `Status: ${data.status} - The test will run on real devices in AWS.`);
+            const id = data.buildId || data.jobId;
+            showToast('success', 'Device Farm Test Started!', 
+              `Job ID: ${id} - The test is now running in the background on AWS.`);
             
-            // You can poll the status or check in AWS Console
             console.log('Device Farm test started:', data);
+            
+            // Start polling for status updates
+            if (data.buildId || data.jobId) {
+              pollDeviceFarmStatus(data.buildId || data.jobId);
+            }
           } else {
             const error = await response.json();
             showToast('error', 'Failed to start Device Farm test', 
@@ -281,7 +340,7 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
       }
       
       // Local test execution
-      const response = await fetch('/api/test/run', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/test/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config)
@@ -307,6 +366,71 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
     ? deviceFarmDevices.find(d => d.id === selectedDevice)
     : null;
 
+  // Poll Device Farm status
+  const pollDeviceFarmStatus = async (buildId: string) => {
+    let attempts = 0;
+    const maxAttempts = 60; // 5 minutes of polling
+    
+    const poll = async () => {
+      try {
+        attempts++;
+        console.log(`Polling Device Farm status ${attempts}/${maxAttempts} for build ${buildId}`);
+        
+        // Call status endpoint - use runArn for Device Farm jobs, buildId for others
+        const isDeviceFarmRun = buildId.startsWith('arn:aws:devicefarm');
+        const statusUrl = isDeviceFarmRun 
+          ? `${process.env.NEXT_PUBLIC_API_URL || ''}/api/device-farm/status?runArn=${encodeURIComponent(buildId)}`
+          : `${process.env.NEXT_PUBLIC_API_URL || ''}/api/device-farm/status?buildId=${buildId}`;
+        
+        const statusResponse = await fetch(statusUrl);
+        
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          console.log('Device Farm status:', statusData);
+          
+          if (statusData.buildStatus === 'SUCCEEDED') {
+            showToast('success', 'Device Farm Test Completed!', 
+              'Your test has finished running. Check the Device Farm console for results.');
+            return;
+          } else if (statusData.buildStatus === 'FAILED' || statusData.buildStatus === 'FAULT' || statusData.buildStatus === 'STOPPED') {
+            showToast('error', 'Device Farm Test Failed', 
+              `Build status: ${statusData.buildStatus}. Check CloudWatch logs for details.`);
+            return;
+          } else if (statusData.buildStatus === 'IN_PROGRESS') {
+            // Only show notification on first poll attempt for local jobs
+            if (buildId.startsWith('local-') && attempts === 1) {
+              showToast('info', 'Device Farm Test Running', 
+                'Local Device Farm job is running. Check Device Farm console for actual status.');
+            } else if (!buildId.startsWith('local-')) {
+              showToast('info', 'Device Farm Test Running', 
+                `Build is in progress (${statusData.currentPhase || 'RUNNING'}). Continuing to monitor...`);
+            }
+          }
+        }
+        
+        // Continue polling if still in progress and under max attempts
+        if (attempts < maxAttempts) {
+          // Use longer polling interval for local jobs since they're just mocks
+          const pollInterval = buildId.startsWith('local-') ? 30000 : 5000; // 30s for local, 5s for real
+          setTimeout(poll, pollInterval);
+        } else {
+          if (!buildId.startsWith('local-')) {
+            showToast('warning', 'Polling Timeout', 
+              'Stopped monitoring build status. Check AWS Console for final results.');
+          }
+        }
+      } catch (error) {
+        console.error('Error polling Device Farm status:', error);
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 5000); // Retry on error
+        }
+      }
+    };
+    
+    // Start polling after a short delay
+    setTimeout(poll, 3000);
+  };
+
   const formatFileSize = (bytes: number) => {
     const mb = bytes / (1024 * 1024);
     return `${mb.toFixed(1)} MB`;
@@ -319,17 +443,22 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
       <div className="space-y-4">
         {/* Run Location Selection */}
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-2">Run Location</label>
+          <label className="block text-xs font-medium text-gray-700 mb-2">
+            Run Location {isAWSDeployment && <span className="text-orange-600">(AWS Deployment)</span>}
+          </label>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setRunLocation('local')}
+              disabled={isAWSDeployment}
               className={`py-2 px-3 rounded-md text-sm font-medium transition-all ${
                 runLocation === 'local'
                   ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : isAWSDeployment
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              Local Device
+              Local Device {isAWSDeployment && '(Disabled)'}
             </button>
             <button
               onClick={() => setRunLocation('device-farm')}
@@ -339,9 +468,14 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              AWS Device Farm
+              AWS Device Farm {isAWSDeployment && '(Required)'}
             </button>
           </div>
+          {isAWSDeployment && (
+            <div className="text-xs text-orange-600 mt-1">
+              Local testing is disabled when deployed to AWS. Only Device Farm testing is available.
+            </div>
+          )}
         </div>
 
         {/* Platform Selection */}
@@ -532,47 +666,98 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
         {/* Single Test Selection */}
         {testMode === 'single' && (
           <>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-2">
-                <FileCode className="w-3.5 h-3.5 inline mr-1" />
-                Test File
-              </label>
-              <select
-                value={selectedTest}
-                onChange={(e) => {
-                  setSelectedTest(e.target.value);
-                  setSelectedTestCase('');
-                }}
-                disabled={loadingTests}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="">
-                  {loadingTests ? 'Loading...' : `Select test (${testFiles.length} files)`}
-                </option>
-                {testFiles.map(file => (
-                  <option key={file.path} value={file.path}>
-                    {file.name} ({file.tests.length} tests)
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {selectedTest && selectedTestFile && (
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Test Case</label>
-                <select
-                  value={selectedTestCase}
-                  onChange={(e) => setSelectedTestCase(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">All tests in file</option>
-                  {selectedTestFile.tests.map(test => (
-                    <option key={test} value={test}>
-                      {test}
+            {runLocation === 'device-farm' ? (
+              /* Device Farm test selection - Suite based */
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <FileCode className="w-3.5 h-3.5 inline mr-1" />
+                    Test Suite
+                  </label>
+                  <select
+                    value={selectedTest}
+                    onChange={(e) => {
+                      setSelectedTest(e.target.value);
+                      setSelectedTestCase('');
+                    }}
+                    disabled={loadingTestSuites}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">
+                      {loadingTestSuites ? 'Loading test suites...' : 'Select test suite'}
                     </option>
-                  ))}
-                </select>
-              </div>
+                    {Object.keys(deviceFarmTestSuites).map(suiteName => (
+                      <option key={suiteName} value={suiteName}>
+                        {suiteName} ({deviceFarmTestSuites[suiteName].length} tests)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedTest && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">Test Case</label>
+                    <select
+                      value={selectedTestCase}
+                      onChange={(e) => setSelectedTestCase(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">All tests in suite</option>
+                      {selectedTest && deviceFarmTestSuites[selectedTest]?.map(test => (
+                        <option key={test} value={test}>
+                          {test}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Local test selection - File based */
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <FileCode className="w-3.5 h-3.5 inline mr-1" />
+                    Test File
+                  </label>
+                  <select
+                    value={selectedTest}
+                    onChange={(e) => {
+                      setSelectedTest(e.target.value);
+                      setSelectedTestCase('');
+                    }}
+                    disabled={loadingTests}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">
+                      {loadingTests ? 'Loading...' : `Select test (${testFiles.length} files)`}
+                    </option>
+                    {testFiles.map(file => (
+                      <option key={file.path} value={file.path}>
+                        {file.name} ({file.tests.length} tests)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedTest && selectedTestFile && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">Test Case</label>
+                    <select
+                      value={selectedTestCase}
+                      onChange={(e) => setSelectedTestCase(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">All tests in file</option>
+                      {selectedTestFile.tests.map(test => (
+                        <option key={test} value={test}>
+                          {test}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
