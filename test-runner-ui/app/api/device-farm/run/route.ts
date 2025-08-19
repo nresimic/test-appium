@@ -317,7 +317,16 @@ async function processDeviceFarmDirectly(jobId: string, params: any) {
     let testSpecArn;
     if (testSpecPath) {
       console.log(`[${jobId}] Creating dynamic test spec with parameters...`);
-      const specPath = path.join(projectRoot, testSpecPath);
+      
+      // Use platform-specific test spec template
+      let specPath;
+      if (platform === 'android') {
+        specPath = path.join(projectRoot, 'device-farm-testspec-android.yml');
+        console.log(`[${jobId}] Using Android-specific test spec template`);
+      } else {
+        specPath = path.join(projectRoot, testSpecPath);
+        console.log(`[${jobId}] Using iOS test spec template: ${testSpecPath}`);
+      }
       
       // Read the base test spec
       const baseTestSpec = await fs.readFile(specPath, 'utf-8');
@@ -326,46 +335,68 @@ async function processDeviceFarmDirectly(jobId: string, params: any) {
       // Insert export commands right before the test phase
       let dynamicTestSpec = baseTestSpec;
       
-      // For Android, ensure we have the required amazon_linux_2 host configuration
-      if (platform === 'android' && !dynamicTestSpec.includes('android_test_host:')) {
-        // Insert android_test_host after version line
-        const versionLineIndex = dynamicTestSpec.indexOf('version:');
-        if (versionLineIndex !== -1) {
-          const endOfVersionLine = dynamicTestSpec.indexOf('\n', versionLineIndex) + 1;
-          dynamicTestSpec = 
-            dynamicTestSpec.slice(0, endOfVersionLine) +
-            '\n# Enable Amazon Linux 2 test host for Android (REQUIRED)\n' +
-            'android_test_host: amazon_linux_2\n' +
-            dynamicTestSpec.slice(endOfVersionLine);
-        }
-      }
-      
-      // Find the test phase and insert our exports before it
-      const testPhaseIndex = dynamicTestSpec.indexOf('  test:');
-      if (testPhaseIndex !== -1) {
-        const insertPoint = dynamicTestSpec.indexOf('commands:', testPhaseIndex) + 'commands:'.length;
-        
-        // Prepare the export commands based on test selection
-        let exportCommands = '\n';
-        if (testMode === 'single' && test) {
-          exportCommands += `      - export TEST_MODE="single"\n`;
-          exportCommands += `      - export SELECTED_TEST="${test}"\n`;
-          if (testCase) {
-            exportCommands += `      - export SELECTED_TEST_CASE="${testCase}"\n`;
+      // Inject test parameters for both platforms
+      if (platform === 'android') {
+        // For Android, set environment variables at the start of test phase
+        const testCommandsIndex = dynamicTestSpec.indexOf('  test:\n    commands:');
+        if (testCommandsIndex !== -1) {
+          const insertPoint = testCommandsIndex + '  test:\n    commands:'.length;
+          
+          let testParamsCommands = '\n';
+          
+          if (testMode === 'single' && test) {
+            testParamsCommands += `      - export TEST_MODE="single"\n`;
+            testParamsCommands += `      - export SELECTED_TEST="${test}"\n`;
+            if (testCase) {
+              testParamsCommands += `      - export SELECTED_TEST_CASE="${testCase}"\n`;
+            }
+          } else {
+            testParamsCommands += `      - export TEST_MODE="full"\n`;
           }
-        } else {
-          exportCommands += `      - export TEST_MODE="full"\n`;
+          testParamsCommands += '      - echo "=== Injected Test Parameters (Android) ==="\n';
+          testParamsCommands += '      - echo TEST_MODE=$TEST_MODE\n';
+          testParamsCommands += '      - echo SELECTED_TEST=$SELECTED_TEST\n';
+          testParamsCommands += '      - echo SELECTED_TEST_CASE=$SELECTED_TEST_CASE\n';
+          
+          dynamicTestSpec = 
+            dynamicTestSpec.slice(0, insertPoint) +
+            testParamsCommands +
+            dynamicTestSpec.slice(insertPoint);
         }
-        exportCommands += '      - echo "=== Injected Test Parameters ==="\n';
-        exportCommands += '      - echo TEST_MODE=$TEST_MODE\n';
-        exportCommands += '      - echo SELECTED_TEST=$SELECTED_TEST\n';
-        exportCommands += '      - echo SELECTED_TEST_CASE=$SELECTED_TEST_CASE\n';
+      } else {
+        // Find the test phase and insert our exports before it (only for iOS)
+        const testPhaseIndex = dynamicTestSpec.indexOf('  test:');
+        if (testPhaseIndex !== -1) {
+          const insertPoint = dynamicTestSpec.indexOf('commands:', testPhaseIndex) + 'commands:'.length;
+          
+          // Prepare the export commands based on test selection
+          let exportCommands = '\n';
+          if (testMode === 'single' && test) {
+            exportCommands += `      - export TEST_MODE="single"\n`;
+            exportCommands += `      - export SELECTED_TEST="${test}"\n`;
+            if (testCase) {
+              exportCommands += `      - export SELECTED_TEST_CASE="${testCase}"\n`;
+            }
+          } else {
+            exportCommands += `      - export TEST_MODE="full"\n`;
+          }
+          exportCommands += '      - echo "=== Injected Test Parameters ==="\n';
+          exportCommands += '      - echo TEST_MODE=$TEST_MODE\n';
+          exportCommands += '      - echo SELECTED_TEST=$SELECTED_TEST\n';
+          exportCommands += '      - echo SELECTED_TEST_CASE=$SELECTED_TEST_CASE\n';
+          
+          // Insert the export commands
+          dynamicTestSpec = 
+            dynamicTestSpec.slice(0, insertPoint) + 
+            exportCommands + 
+            dynamicTestSpec.slice(insertPoint);
+        }
         
-        // Insert the export commands
-        dynamicTestSpec = 
-          dynamicTestSpec.slice(0, insertPoint) + 
-          exportCommands + 
-          dynamicTestSpec.slice(insertPoint);
+        // Fix the config file path for iOS
+        dynamicTestSpec = dynamicTestSpec.replace(
+          /npx wdio config\/wdio\.(android|ios)\.devicefarm\.conf\.ts/g,
+          `npx wdio config/wdio.ios.devicefarm.conf.ts`
+        );
       }
       
       // Save the dynamic test spec
