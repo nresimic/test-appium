@@ -32,21 +32,6 @@ export class LoginFlow {
             }
         );
     }
-
-    static async quickLogin(user: TestUser) {
-        return await withErrorHandling(
-            async () => {
-                await WelcomeScreen.waitForScreen();
-                await WelcomeScreen.tapLoginButton();
-                await AuthScreen.performQuickLogin(user);
-                await PostLoginUtils.waitForPostLoginScreen();
-            },
-            {
-                operation: 'Quick login flow',
-                recoverable: false
-            }
-        );
-    }
     
     static async passcodeReauth(user: TestUser) {
         return await withErrorHandling(

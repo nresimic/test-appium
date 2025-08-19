@@ -1,5 +1,6 @@
 import BaseScreen from './base.screen';
 import { waitForDisplayed } from '../utils/wait.utils';
+import { getDynamicSelector } from 'test/utils/selector.utils';
 
 class PortfolioScreen extends BaseScreen {
     // Net worth elements
@@ -314,12 +315,18 @@ class PortfolioScreen extends BaseScreen {
     }
 
     async getAccountByName(name: string) {
-        return this.getElement(`~${name}`);
+        return this.getElement(getDynamicSelector(name));
     }
 
     async verifyAccountExists(name: string) {
         const account = await this.getAccountByName(name);
-        return await account.isExisting();
+        try {
+            await waitForDisplayed(account, 10000, false, `Account "${name}"`);
+            return true;
+        } catch (error) {
+            console.log(`Account "${name}" not found or not displayed`);
+            return false;
+        }
     }
 }
 

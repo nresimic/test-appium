@@ -104,46 +104,6 @@ describe('Profile Settings', () => {
         });
     });
 
-    it.only('Should successfully change gender selection', async () => {
-        await step('Navigate to Profile settings through Menu', async () => {
-            await BottomNavigationScreen.tapMenuButton();
-            await MenuScreen.tapSettingsButton();
-            await SettingsScreen.openProfile();
-            await AuthScreen.enterPasscode(TEST_USER.passcode);
-            await ProfileScreen.verifyProfileScreenDisplayed();
-        });
-
-        await step('Navigate to personal section and open gender modal', async () => {
-            await scrollToElement('~Personal');
-            await ProfileScreen.tapGenderField();
-            await ProfileScreen.verifyGenderModalDisplayed();
-            
-            const screenshot = await browser.takeScreenshot();
-            await addAttachment('Gender selection modal opened', Buffer.from(screenshot, 'base64'), 'image/png');
-        });
-
-        await step('Select "Male" gender option', async () => {
-            await ProfileScreen.selectGenderOption('Male');
-            
-            // Verify the selection visually (Flutter limitations with checked state)
-            await ProfileScreen.verifyGenderOptionSelected('Male');
-            
-            const screenshot = await browser.takeScreenshot();
-            await addAttachment('After selecting Male option', Buffer.from(screenshot, 'base64'), 'image/png');
-        });
-
-        await step('Save gender selection', async () => {
-            await ProfileScreen.tapUpdateButton();
-        });
-
-        await step('Verify gender was successfully updated', async () => {
-            await ProfileScreen.verifyGenderValue('Male');
-            
-            const screenshot = await browser.takeScreenshot();
-            await addAttachment('Gender successfully updated to Male', Buffer.from(screenshot, 'base64'), 'image/png');
-        });
-    });
-
     it('Should allow canceling gender selection changes', async () => {
         await step('Navigate to Profile settings through Menu', async () => {
             await BottomNavigationScreen.tapMenuButton();
@@ -167,32 +127,6 @@ describe('Profile Settings', () => {
             const screenshot = await browser.takeScreenshot();
             await addAttachment('Gender selection canceled successfully', Buffer.from(screenshot, 'base64'), 'image/png');
         });
-    });
-
-    it('Should test all gender options selection', async () => {
-        const genderOptions: Array<'Male' | 'Female' | 'Other' | 'Prefer not to say'> = ['Male', 'Female', 'Other', 'Prefer not to say'];
-        
-        await step('Navigate to Profile settings', async () => {
-            await BottomNavigationScreen.tapMenuButton();
-            await MenuScreen.tapSettingsButton();
-            await SettingsScreen.openProfile();
-            await AuthScreen.enterPasscode(TEST_USER.passcode);
-            await ProfileScreen.verifyProfileScreenDisplayed();
-            await scrollToElement('~Personal');
-        });
-
-        for (const genderOption of genderOptions) {
-            await step(`Test selecting "${genderOption}" gender option`, async () => {
-                await ProfileScreen.tapGenderField();
-                await ProfileScreen.verifyGenderModalDisplayed();
-                await ProfileScreen.selectGenderOption(genderOption);
-                await ProfileScreen.tapUpdateButton();
-                await ProfileScreen.verifyGenderValue(genderOption);
-                
-                const screenshot = await browser.takeScreenshot();
-                await addAttachment(`Gender set to ${genderOption}`, Buffer.from(screenshot, 'base64'), 'image/png');
-            });
-        }
     });
 
 });

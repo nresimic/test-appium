@@ -159,8 +159,10 @@ class ProfileScreen extends BaseScreen {
                 break;
         }
         
-        await option.waitForDisplayed({ timeout: 5000 });
+
         await option.click();
+        console.log(`✅ Clicked ${genderOption} option`);
+        
         await smartWait(TIMEOUTS.ANIMATION);
     }
 

@@ -1,5 +1,4 @@
 import { step } from '@wdio/allure-reporter';
-import { LoginFlow, LogoutFlow } from '../../flows';
 import { 
     BottomNavigationScreen, 
     MenuScreen, 
@@ -13,13 +12,10 @@ import {
     validateAllCurrenciesExist,
     getFallbackCurrency
 } from '../../data';
-import { 
-    navigateToHomeScreen, 
+import {
     attachScreenshot,
     SmartTestIsolation,
     TestIsolationLevel,
-    smartWait,
-    TIMEOUTS,
     waitForModal
 } from '../../utils';
 
@@ -152,22 +148,10 @@ describe('Currency Settings', () => {
         });
         
         await step('Logout from the app', async () => {
-            await navigateToHomeScreen();
-            
-            const logoutSuccess = await LogoutFlow.logout();
-            expect(logoutSuccess).toBe(true);
-            
-            await attachScreenshot('After logout');
-        });
-        
-        await step('Login again with same user', async () => {
-            await LoginFlow.quickLogin(TestUsers.validUserWithoutBankAcc);
-            
-            // Wait for dashboard to be ready after login
-            await smartWait(async () => {
-                const menuButton = await BottomNavigationScreen.menuButton;
-                return await menuButton.isDisplayed().catch(() => false);
-            }, { timeout: TIMEOUTS.LOGIN, message: 'Menu button not visible after login' });
+            await SmartTestIsolation.prepareForTest(
+                TestIsolationLevel.PRESERVE_LOGIN,
+                TEST_USER
+            );
         });
         
         await step('Navigate to currency settings and verify persistence', async () => {

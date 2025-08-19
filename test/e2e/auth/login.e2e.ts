@@ -7,11 +7,9 @@ import {
     SmartTestIsolation,
     TestIsolationLevel 
 } from '../../utils';
-// No need to import tag utilities - just add @tags directly to test descriptions
 
 describe('Login Flow', () => {
     beforeEach(async () => {
-        // Auth tests need full clean state - no login preservation
         await SmartTestIsolation.prepareForTest(TestIsolationLevel.FULL_CLEAN);
     });
     
