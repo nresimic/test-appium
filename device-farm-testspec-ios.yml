@@ -1,8 +1,5 @@
 version: 0.1
 
-# Enable Amazon Linux 2 test host for Android (REQUIRED)
-android_test_host: amazon_linux_2
-
 # Based on working Appium 2.x examples from AWS re:Post and community
 # https://repost.aws/questions/QUlK5xNrTmSgq54_VYH06Btg/how-to-work-with-appium-2-0-with-aws-device-farm
 
@@ -52,12 +49,6 @@ phases:
 
   test:
     commands:
-      - export TEST_MODE="full"
-      - echo "=== Injected Test Parameters ==="
-      - echo TEST_MODE=$TEST_MODE
-      - echo SELECTED_TEST=$SELECTED_TEST
-      - echo SELECTED_TEST_CASE=$SELECTED_TEST_CASE
-
       # Run WebDriverIO tests with Appium 2.x
       - echo "=== Running iOS Appium 2.x Tests ==="
       - cd $DEVICEFARM_TEST_PACKAGE_PATH

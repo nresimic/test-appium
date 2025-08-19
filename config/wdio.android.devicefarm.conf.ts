@@ -50,7 +50,7 @@ export const config = {
         'appium:app': getDeviceFarmAppPath(),
         'appium:automationName': 'UiAutomator2',
         'appium:noReset': false,
-        'appium:fullReset': false,
+        'appium:fullReset': true,
         'appium:newCommandTimeout': 240,
         // Device Farm specific settings
         'appium:appWaitForLaunch': true,

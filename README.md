@@ -61,14 +61,19 @@ npm run appium:start
 
 ### Run Tests
 ```bash
-# Android tests
-npm run test:android
+# Local testing
+npm run test:android         # Android emulator/device
+npm run test:ios            # iOS simulator (macOS only)
 
-# iOS tests (macOS only)  
-npm run test:ios
+# AWS Device Farm testing
+npm run test:android:devicefarm  # Android on Device Farm
+npm run test:ios:devicefarm     # iOS on Device Farm
+
+# Run all platforms
+npm test                    # Android + iOS
 
 # Specific test file
-npm run test:android -- --spec="test/e2e/login.e2e.ts"
+npm run test:android -- --spec="test/e2e/auth/login.e2e.ts"
 ```
 
 ### Stop Appium Server
@@ -84,6 +89,13 @@ npm run build:check
 
 # Download latest build from CI
 npm run build:fetch
+
+# Download specific platform/branch
+npm run build:fetch -- --platform android --branch main
+npm run build:fetch -- --platform ios --branch develop
+
+# Force re-download (skip cache)
+npm run build:fetch -- --platform android --force
 
 # List downloaded builds
 npm run build:list
@@ -101,6 +113,40 @@ npm run allure:open
 # Generate and serve report
 npm run allure:serve
 ```
+
+## Development
+
+```bash
+# Compile TypeScript
+npm run compile
+
+# Watch mode compilation
+npm run compile:watch
+```
+
+## Test Runner UI
+
+This project includes a Next.js web interface for managing test runs:
+
+```bash
+# Navigate to test runner UI
+cd test-runner-ui
+
+# Install dependencies (if not already done)
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+```
+
+Access the UI at `http://localhost:3000` to:
+- View test results and reports
+- Manage build downloads
+- Monitor test execution
+- Configure test runs
 
 ## Environment Variables
 
@@ -177,14 +223,17 @@ npm run setup:check
 
 ```
 ├── test/
-│   ├── e2e/                 # Test files
-│   ├── screen-objects/      # Page Object Model
-│   └── data/               # Test data
-├── config/                 # WebdriverIO configurations
-├── apps/android/           # APK files
-├── services/               # Bitrise integration
-├── scripts/                # Utility scripts
-└── allure-results/         # Test reports
+│   ├── e2e/                 # End-to-end test files
+│   ├── screens/             # Page Object Model (Screen Objects)
+│   ├── flows/               # Test flow utilities
+│   ├── data/                # Test data and user profiles
+│   └── utils/               # Test utilities and helpers
+├── config/                  # WebdriverIO configurations
+├── apps/android/            # APK files
+├── services/bitrise/        # Bitrise integration service
+├── scripts/                 # Build management and setup scripts
+├── test-runner-ui/          # Test runner web UI (Next.js)
+└── allure-results/          # Test reports and artifacts
 ```
 
 ## Tips

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Play, Smartphone, Package, FileCode, RefreshCw, Download } from 'lucide-react';
 import { useToast } from './ToastContainer';
+import BuildFetchModal from './BuildFetchModal';
 
 interface Build {
   id: string;
@@ -56,8 +57,12 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
   const [loadingTests, setLoadingTests] = useState(false);
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [loadingTestSuites, setLoadingTestSuites] = useState(false);
-  const [fetchingBuilds, setFetchingBuilds] = useState(false);
   const [submittingDeviceFarm, setSubmittingDeviceFarm] = useState(false);
+  
+  // Build fetch modal
+  const [showBuildFetchModal, setShowBuildFetchModal] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<{ isActive: boolean; message: string; }>({ isActive: false, message: '' });
+  
   
   // Tag selection state
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -109,6 +114,7 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
     }
   };
 
+
   const fetchBuilds = async () => {
     setLoadingBuilds(true);
     try {
@@ -124,18 +130,21 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
     }
   };
 
-  const fetchLatestBuilds = async () => {
-    setFetchingBuilds(true);
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/builds/fetch`, { method: 'POST' });
-      if (response.ok) {
-        await fetchBuilds();
-      }
-    } catch (error) {
-      console.error('Failed to fetch latest builds:', error);
-    } finally {
-      setFetchingBuilds(false);
-    }
+  const handleBuildFetchSuccess = async (message: string) => {
+    showToast('success', 'Build Fetched', message);
+    // Clear download progress and refresh the builds list
+    setDownloadProgress({ isActive: false, message: '' });
+    await fetchBuilds();
+  };
+
+  const handleDownloadStart = (message: string) => {
+    setDownloadProgress({ isActive: true, message });
+  };
+
+  const handleBuildFetchError = (message: string) => {
+    showToast('error', 'Fetch Failed', message);
+    // Clear download progress on error
+    setDownloadProgress({ isActive: false, message: '' });
   };
 
   const fetchDeviceFarmTestSuites = async () => {
@@ -303,7 +312,7 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
             devicePoolArn,
             platform,
             buildPath: selectedBuildInfo.path,
-            testSpecPath: 'device-farm-testspec.yml',
+            testSpecPath: platform === 'Android' ? 'device-farm-testspec-android.yml' : 'device-farm-testspec-ios.yml',
             testMode,
             testSuite: testMode === 'single' ? selectedTest : undefined,
             testCase: testMode === 'single' ? selectedTestCase : undefined
@@ -514,18 +523,30 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
               <Package className="w-3.5 h-3.5 inline mr-1" />
               Build
             </label>
-            <button
-              onClick={fetchLatestBuilds}
-              disabled={fetchingBuilds}
-              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
-            >
-              {fetchingBuilds ? (
-                <RefreshCw className="w-3 h-3 animate-spin" />
-              ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowBuildFetchModal(true)}
+                disabled={downloadProgress.isActive}
+                className={`text-xs flex items-center gap-1 transition-colors ${
+                  downloadProgress.isActive 
+                    ? 'text-gray-400 cursor-not-allowed' 
+                    : 'text-blue-600 hover:text-blue-700'
+                }`}
+              >
                 <Download className="w-3 h-3" />
+                Fetch Build
+              </button>
+              {downloadProgress.isActive && (
+                <div className="flex items-center gap-2 ml-2">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                  </div>
+                  <span className="text-xs text-blue-600 font-medium">{downloadProgress.message}</span>
+                </div>
               )}
-              Fetch Latest
-            </button>
+            </div>
           </div>
           <select
             value={selectedBuild}
@@ -812,6 +833,15 @@ export default function TestConfiguration({ onTestStart }: TestConfigurationProp
           )}
         </button>
       </div>
+
+      {/* Build Fetch Modal */}
+      <BuildFetchModal
+        isOpen={showBuildFetchModal}
+        onClose={() => setShowBuildFetchModal(false)}
+        onSuccess={handleBuildFetchSuccess}
+        onError={handleBuildFetchError}
+        onDownloadStart={handleDownloadStart}
+      />
     </div>
   );
 }

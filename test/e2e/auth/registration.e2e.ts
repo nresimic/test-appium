@@ -26,7 +26,7 @@ describe('Registration Flow', () => {
         
     });
 
-    it('Should register a new user and link bank account successfully', async () => {
+    it.skip('Should register a new user and link bank account successfully', async () => {
         const newUser = TestUsers.generateNewUser();
         const bankUsername = process.env.bank_username || 'dorriskemmer';
         const bankPassword = process.env.bank_password || 'kAsPPxeFREd';

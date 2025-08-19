@@ -1,0 +1,186 @@
+version: 0.1
+
+# Enable Amazon Linux 2 test host for Android (REQUIRED)
+android_test_host: amazon_linux_2
+
+# Phases represent collections of commands executed during test run
+phases:
+  # Install phase for dependencies
+  install:
+    commands:
+      # Set up Node.js environment using devicefarm-cli
+      - echo "=== Setting up Amazon Linux 2 environment ==="
+      - devicefarm-cli use node 18
+      - node --version
+      - npm --version
+      
+      # Set up Appium using devicefarm-cli (NOTE: use 'appium 2' not 'appium 2.0')
+      - echo "=== Installing Appium via devicefarm-cli ==="
+      - devicefarm-cli use appium 2
+      - appium --version
+      
+      # Install project dependencies (NOTE: use 'npm install' not 'npm ci')
+      - echo "=== Installing test dependencies ==="
+      - cd $DEVICEFARM_TEST_PACKAGE_PATH
+      - npm install
+      
+      # Install TypeScript tools for test compilation
+      - echo "=== Installing TypeScript tools ==="
+      - npm install --no-save ts-node
+
+  # Pre-test phase for setup
+  pre_test:
+    commands:
+      # Safety cleanup - ensure no corrupted app installations
+      - echo "=== App Cleanup (Preventing Corruption) ==="
+      - adb uninstall com.vault22.next.uae.develop || echo "App not installed (expected)"
+      - adb uninstall com.vault22.next.uae.preprod || echo "Preprod app not installed (expected)"
+      - echo "✅ Device ready for fresh app installation"
+      
+      - echo "=== Starting Appium Server ==="
+      - echo "Device:" $DEVICEFARM_DEVICE_NAME  
+      - echo "Platform:" $DEVICEFARM_DEVICE_PLATFORM_NAME $DEVICEFARM_DEVICE_OS_VERSION
+      - echo "App:" $DEVICEFARM_APP_PATH
+      - echo "UDID:" $DEVICEFARM_DEVICE_UDID
+      
+      # Start Appium server with proper capabilities for Amazon Linux 2
+      - |
+        appium --base-path=$APPIUM_BASE_PATH --log-timestamp \
+        --log-no-colors --relaxed-security --default-capabilities \
+        "{\"appium:deviceName\": \"$DEVICEFARM_DEVICE_NAME\", \
+        \"platformName\": \"$DEVICEFARM_DEVICE_PLATFORM_NAME\", \
+        \"appium:app\": \"$DEVICEFARM_APP_PATH\", \
+        \"appium:udid\":\"$DEVICEFARM_DEVICE_UDID\", \
+        \"appium:platformVersion\": \"$DEVICEFARM_DEVICE_OS_VERSION\", \
+        \"appium:chromedriverExecutableDir\": \"$DEVICEFARM_CHROMEDRIVER_EXECUTABLE_DIR\", \
+        \"appium:automationName\": \"UiAutomator2\"}" \
+        >> $DEVICEFARM_LOG_DIR/appium.log 2>&1 &
+      
+      # Wait for Appium to initialize with shorter timeout for testing
+      - |
+        echo "Waiting for Appium to start..."
+        appium_initialization_time=0
+        while [ $appium_initialization_time -lt 90 ]; do
+          if curl -s http://localhost:4723/status | grep -q "ready"; then
+            echo "✅ Appium is ready!"
+            break
+          fi
+          appium_initialization_time=$((appium_initialization_time + 1))
+          echo "⏳ Waiting for Appium... ($appium_initialization_time/90)"
+          sleep 1
+        done
+        
+        if [ $appium_initialization_time -eq 90 ]; then
+          echo "❌ Appium failed to start within 90 seconds"
+          echo "Checking Appium logs..."
+          tail -20 $DEVICEFARM_LOG_DIR/appium.log || echo "No appium.log found"
+          exit 1
+        fi
+
+  # Test execution phase
+  test:
+    commands:
+      - echo "=== Running Tests ==="
+      - cd $DEVICEFARM_TEST_PACKAGE_PATH
+      
+      # Set up TypeScript compilation for Device Farm
+      - export TS_NODE_TRANSPILE_ONLY=true
+      
+      # Debug working directory and files
+      - echo "Current directory:" $(pwd)
+      - echo "Contents:" && ls -la
+      - echo "Config directory contents:" && ls -la config/
+      - echo "Looking for Device Farm config:" && ls -la config/wdio.android.devicefarm.conf.ts
+      
+      # Device Farm passes test parameters as environment variables directly
+      - |
+        echo "=== Checking Test Parameters ==="
+        echo "TEST_MODE environment variable: $TEST_MODE"
+        echo "SELECTED_TEST environment variable: $SELECTED_TEST"
+        echo "SELECTED_TEST_CASE environment variable: $SELECTED_TEST_CASE"
+        
+        # Debug: List all environment variables that start with DEVICEFARM or TEST
+        echo "=== All Device Farm and Test Environment Variables ==="
+        env | grep -E "^(DEVICEFARM|TEST)" | sort
+        
+        # Set defaults if not provided
+        if [ -z "$TEST_MODE" ]; then
+          export TEST_MODE="full"
+          echo "No TEST_MODE specified, defaulting to: full"
+        fi
+      
+      # Debug test selection environment variables
+      - echo "=== Test Selection Debug ==="
+      - echo "TEST_MODE:" $TEST_MODE
+      - echo "SELECTED_TEST:" $SELECTED_TEST
+      - echo "SELECTED_TEST_CASE:" $SELECTED_TEST_CASE
+      
+      # Run Android WebdriverIO tests with Device Farm config
+      - echo "🤖 Running Android WebdriverIO tests with Device Farm config"
+      - echo "Checking if config file exists..."
+      - |
+        if [ -f "config/wdio.android.devicefarm.conf.ts" ]; then
+          echo "✅ Config file found, running tests..."
+          
+          # Build wdio command based on test selection
+          WDIO_CMD="npx wdio config/wdio.android.devicefarm.conf.ts"
+          
+          if [ "$TEST_MODE" = "single" ] && [ -n "$SELECTED_TEST" ]; then
+            echo "🎯 Running single test: $SELECTED_TEST"
+            WDIO_CMD="$WDIO_CMD --spec $SELECTED_TEST"
+            
+            if [ -n "$SELECTED_TEST_CASE" ]; then
+              echo "🎯 Running specific test case: $SELECTED_TEST_CASE"
+              # Export as environment variable for WebDriverIO config to pick up
+              export WDIO_GREP_PATTERN="$SELECTED_TEST_CASE"
+              echo "🔧 Set WDIO_GREP_PATTERN: $WDIO_GREP_PATTERN"
+            fi
+          else
+            echo "🏃 Running full Android test suite"
+          fi
+          
+          echo "Executing: $WDIO_CMD"
+          eval $WDIO_CMD
+        else
+          echo "❌ Android Device Farm config file not found! Available configs:"
+          ls -la config/
+          exit 1
+        fi
+
+  # Post-test cleanup and reporting
+  post_test:
+    commands:
+      - echo "=== Post-test cleanup ==="
+      
+      # Generate Allure report if available
+      - |
+        if [ -d "allure-results" ] && [ "$(ls -A allure-results 2>/dev/null)" ]; then
+          echo "📊 Generating Allure report..."
+          npm install -g allure-commandline
+          echo "Generating single-file HTML report..."
+          allure generate allure-results --clean --single-file -o allure-report
+          echo "✅ Allure single-file report generated"
+          
+          # Also copy the single HTML file directly to log dir with a clear name
+          if [ -f "allure-report/index.html" ]; then
+            cp allure-report/index.html $DEVICEFARM_LOG_DIR/allure-report-complete.html
+            echo "✅ Single HTML report copied to artifacts"
+          fi
+        else
+          echo "⚠️ No Allure results found"
+        fi
+      
+      # Copy artifacts to Device Farm log directory
+      - |
+        if [ -d "allure-report" ]; then
+          cp -r allure-report $DEVICEFARM_LOG_DIR/ 2>/dev/null || echo "Could not copy allure-report"
+        fi
+        if [ -d "screenshots" ]; then
+          cp -r screenshots $DEVICEFARM_LOG_DIR/ 2>/dev/null || echo "Could not copy screenshots"
+        fi
+      
+      - echo "✅ Test execution completed"
+
+# Artifacts to be collected by Device Farm
+artifacts:
+  - $DEVICEFARM_LOG_DIR

@@ -28,7 +28,20 @@ export const config: Options.Testrunner = {
     
     beforeSession: function (_config, capabilities, _specs) {
         const caps = capabilities as any;
-        console.log(`Starting ${caps.platformName || caps['appium:platformName'] || 'unknown'} test session...`);
+        const platform = caps.platformName || caps['appium:platformName'] || 'unknown';
+        const fullReset = caps['appium:fullReset'];
+        const noReset = caps['appium:noReset'];
+        
+        console.log(`🚀 Starting ${platform} test session...`);
+        console.log(`📋 Reset Strategy: fullReset=${fullReset}, noReset=${noReset}`);
+        
+        if (fullReset) {
+            console.log('🧹 Appium will uninstall/reinstall app for clean session');
+        } else if (!noReset) {
+            console.log('🔄 Appium will clear app data but keep app installed');
+        } else {
+            console.log('🔒 Appium will preserve all app data');
+        }
     },
     
     afterTest: async function(test, _context, { error, passed }) {

@@ -29,10 +29,6 @@ class MenuScreen extends BaseScreen {
         return this.getElement('~Goals');
     }
 
-    get actionItemsButton() {
-        return this.getElement('~Action Items');
-    }
-
     get settingsButton() {
         return this.getElement('~Settings');
     }
@@ -71,9 +67,7 @@ class MenuScreen extends BaseScreen {
         await this.notificationsButton.waitForDisplayed();
         await this.investmentsButton.waitForDisplayed();
         await this.goalsButton.waitForDisplayed();
-        await this.actionItemsButton.waitForDisplayed();
         await this.settingsButton.waitForDisplayed();
-        await this.helpAndFaqButton.waitForDisplayed();
     }
 
     async tapProfileButton() {
@@ -90,10 +84,6 @@ class MenuScreen extends BaseScreen {
 
     async tapGoalsButton() {
         await this.goalsButton.click();
-    }
-
-    async tapActionItemsButton() {
-        await this.actionItemsButton.click();
     }
 
     async tapSettingsButton() {

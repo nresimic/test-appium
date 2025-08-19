@@ -326,6 +326,20 @@ async function processDeviceFarmDirectly(jobId: string, params: any) {
       // Insert export commands right before the test phase
       let dynamicTestSpec = baseTestSpec;
       
+      // For Android, ensure we have the required amazon_linux_2 host configuration
+      if (platform === 'android' && !dynamicTestSpec.includes('android_test_host:')) {
+        // Insert android_test_host after version line
+        const versionLineIndex = dynamicTestSpec.indexOf('version:');
+        if (versionLineIndex !== -1) {
+          const endOfVersionLine = dynamicTestSpec.indexOf('\n', versionLineIndex) + 1;
+          dynamicTestSpec = 
+            dynamicTestSpec.slice(0, endOfVersionLine) +
+            '\n# Enable Amazon Linux 2 test host for Android (REQUIRED)\n' +
+            'android_test_host: amazon_linux_2\n' +
+            dynamicTestSpec.slice(endOfVersionLine);
+        }
+      }
+      
       // Find the test phase and insert our exports before it
       const testPhaseIndex = dynamicTestSpec.indexOf('  test:');
       if (testPhaseIndex !== -1) {

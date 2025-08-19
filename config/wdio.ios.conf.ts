@@ -15,7 +15,7 @@ function getAppPath(): string {
     }
     
     // Use latest app if USE_LATEST is set
-    if (process.env.USE_LATEST === 'true') {
+    if (process.env.USE_LATEST === 'false') {
         const files = fs.readdirSync(appsDir)
             .filter(file => file.endsWith('.app'))
             .map(file => ({

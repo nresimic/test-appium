@@ -8,7 +8,9 @@
   "scripts": {
     "test": "npm run test:android && npm run test:ios",
     "test:android": "npx tsx node_modules/.bin/wdio config/wdio.android.conf.ts",
+    "test:android:devicefarm": "npx ts-node node_modules/.bin/wdio config/wdio.android.devicefarm.conf.ts",
     "test:ios": "npx tsx node_modules/.bin/wdio config/wdio.ios.conf.ts",
+    "test:ios:devicefarm": "npx ts-node node_modules/.bin/wdio config/wdio.ios.devicefarm.simple.conf.ts",
     "build:check": "npx tsx scripts/check-build.ts",
     "build:fetch": "npx tsx scripts/fetch-builds.ts",
     "build:list": "ls -la apps/android/",

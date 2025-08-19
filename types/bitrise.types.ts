@@ -15,6 +15,7 @@ export interface BuildInfo {
   commitMessage: string | null;
   triggeredAt: string;
   finishedAt: string | null;
+  workflow?: string;
 }
 
 export interface ArtifactInfo {

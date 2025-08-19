@@ -409,7 +409,11 @@ export async function POST(request: Request) {
       maxBuffer: 1024 * 1024 * 50, // Increase buffer to 50MB to prevent EPIPE
       env: {
         ...process.env,
-        NODE_OPTIONS: '--max-old-space-size=4096' // Increase Node memory limit
+        NODE_OPTIONS: '--max-old-space-size=4096', // Increase Node memory limit
+        // Pass selected app path to WebDriverIO config for iOS
+        ...(config.platform === 'ios' && config.build && {
+          IOS_APP_NAME: path.basename(config.build)
+        })
       }
     })
       .then(async ({ stdout, stderr }) => {

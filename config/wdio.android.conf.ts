@@ -64,7 +64,7 @@ export const config = {
         'appium:app': getAppPath(),
         'appium:automationName': 'UiAutomator2',
         'appium:noReset': process.env.ANDROID_NO_RESET === 'true' ? true : false,
-        'appium:fullReset': false,  // Temporarily set to false for testing
+        'appium:fullReset': process.env.ANDROID_FULL_RESET === 'false' ? false : true,  // Default to true for clean sessions
         'appium:newCommandTimeout': 240,
         // Auto-detect first available device if not specified
         'appium:udid': process.env.ANDROID_UDID || undefined,
